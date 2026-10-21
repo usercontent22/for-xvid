@@ -36,3 +36,19 @@ Go to **Actions → Collect channel video metadata → Run workflow**. For the i
 The matrix has 20 stable shards. The default is one request worker per shard and a one-second base pause plus a random pause. Raise parallelism only gradually, while watching for 429s and respecting the source website's terms and rate limits. Temporary 429/5xx responses use exponential backoff. Each runner job has a six-hour timeout. Public-repository standard runners are free, but the account still has a concurrency ceiling.
 
 The workflow runs daily and refreshes the first two pages of each channel to capture new uploads. Completed older pages are skipped. Failed pages are left uncheckpointed and retried on a later run. Errors and progress are printed directly in the GitHub Actions logs; no workflow artifacts are created.
+
+## Video tag scraping workflow
+
+The separate **Scrape video tags** workflow visits each pending video URL and parses these HTML meta elements:
+
+- `meta[property="video:tag"]`
+- `meta[name="keywords"]`
+
+Each value is split on commas, trimmed, deduplicated, and stored as a sorted `text[]` in `public.videos.tags`. The scraper does not infer categories.
+
+The tag workflow runs automatically after a successful **Collect channel video metadata** workflow on `main`, and it can also be started manually from **Actions → Scrape video tags**. It uses 20 matrix shards and four HTTP workers per shard by default (up to 80 concurrent source requests if all jobs are running). Requests have timeouts, retries, exponential backoff, and a configurable delay. Start with a manual test using `max_rows_per_db=5`; use `0` for the full pending backlog.
+
+For resumability, the tag workflow adds `tags_scraped_at` to `public.videos` and a partial index for rows that still need processing. The timestamp is set even when the page has no keyword tags, so such pages are not fetched again on every run. Existing non-empty tags are preserved. Failed requests are logged and left pending so a later run can retry them.
+
+The workflow does not upload artifacts or generate report files; progress and failures are available directly in the GitHub Actions logs.
+
