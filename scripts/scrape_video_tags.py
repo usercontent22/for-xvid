@@ -10,7 +10,7 @@ import sys
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin, urlparse, urlunparse
 
 import psycopg
 import requests
@@ -73,6 +73,22 @@ def normalize_video_url(value):
     return urljoin(BASE + "/", value)
 
 
+def build_request_url(value):
+    """Convert /VIDEO_ID/slug to /video.VIDEO_ID/slug for the HTML request only."""
+    normalized = normalize_video_url(value)
+    parsed = urlparse(normalized)
+    base_host = (urlparse(BASE).hostname or "").lower().removeprefix("www.")
+    target_host = (parsed.hostname or "").lower().removeprefix("www.")
+    if target_host != base_host:
+        return normalized
+
+    segments = parsed.path.split("/")
+    if len(segments) > 1 and segments[1] and not segments[1].lower().startswith("video."):
+        segments[1] = "video." + segments[1]
+        parsed = parsed._replace(path="/".join(segments))
+    return urlunparse(parsed)
+
+
 def extract_tags(html):
     """Collect comma-separated values from the same two meta selectors as the test script."""
     soup = BeautifulSoup(html, "html.parser")
@@ -85,7 +101,7 @@ def extract_tags(html):
 
 
 def request_tags(video_url, retries=4, timeout=30, delay=1.0):
-    target = normalize_video_url(video_url)
+    target = build_request_url(video_url)
     last_error = None
     for attempt in range(retries + 1):
         try:
