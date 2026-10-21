@@ -1,6 +1,6 @@
 import unittest
 
-from scripts.scrape_video_tags import extract_tags, normalize_video_url
+from scripts.scrape_video_tags import build_request_url, extract_tags, normalize_video_url
 
 
 class VideoTagExtractionTests(unittest.TestCase):
@@ -25,6 +25,26 @@ class VideoTagExtractionTests(unittest.TestCase):
         self.assertEqual(
             normalize_video_url("/channel/video-slug"),
             "https://www.xvideos.com/channel/video-slug",
+        )
+
+    def test_request_url_adds_video_prefix_to_video_id_path(self):
+        self.assertEqual(
+            build_request_url(
+                "https://www.xvideos.com/aalcci2892/naughty_babes_aj_applegate_and_brookl"
+            ),
+            "https://www.xvideos.com/video.aalcci2892/naughty_babes_aj_applegate_and_brookl",
+        )
+
+    def test_request_url_transforms_relative_url_and_preserves_query(self):
+        self.assertEqual(
+            build_request_url("/aalcci2892/video-slug?quality=high"),
+            "https://www.xvideos.com/video.aalcci2892/video-slug?quality=high",
+        )
+
+    def test_request_url_does_not_double_prefix(self):
+        self.assertEqual(
+            build_request_url("https://www.xvideos.com/video.aalcci2892/video-slug"),
+            "https://www.xvideos.com/video.aalcci2892/video-slug",
         )
 
 
