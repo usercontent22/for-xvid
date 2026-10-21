@@ -1,8 +1,12 @@
+import json
+import tempfile
 import unittest
+from pathlib import Path
 
 from scripts.collect_channel_videos import (
     clean_img, clean_url, duration_seconds, integer_views,
     normalize, rating_percentage, channel_slug, bucket_for,
+    load_channels, reported_video_count,
 )
 
 
@@ -70,6 +74,38 @@ class MetadataNormalizationTests(unittest.TestCase):
     def test_partition_is_stable(self):
         self.assertEqual(bucket_for("/abc123/video_slug"), bucket_for("/abc123/video_slug"))
         self.assertIn(bucket_for("/abc123/video_slug"), (0, 1))
+
+
+    def test_null_inventory_counts_are_probed_but_known_small_channels_are_skipped(self):
+        inventory = [
+            {"href": "/unknown_count", "total_videos": None},
+            {"href": "/string_null_count", "total_videos": "null"},
+            {"href": "/nine_videos", "total_videos": 9},
+            {"href": "/ten_videos", "total_videos": 10},
+            {"href": "/large_channel", "total_videos": "12,345"},
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "channels.json"
+            path.write_text(json.dumps(inventory), encoding="utf-8")
+            channels = load_channels(str(path), minimum=10)
+        self.assertEqual(
+            channels,
+            ["large_channel", "string_null_count", "ten_videos", "unknown_count"],
+        )
+
+    def test_actual_api_count_overrides_null_inventory_and_controls_threshold(self):
+        self.assertEqual(
+            reported_video_count({"nb_videos": 10, "videos": [{}, {}]}),
+            10,
+        )
+        self.assertEqual(
+            reported_video_count({"nb_videos": 9, "videos": [{}] * 20}),
+            9,
+        )
+
+    def test_missing_api_count_falls_back_to_returned_page_count(self):
+        self.assertEqual(reported_video_count({"nb_videos": None, "videos": [{}] * 10}), 10)
+        self.assertEqual(reported_video_count({"videos": []}), 0)
 
 
 if __name__ == "__main__":
