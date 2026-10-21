@@ -421,7 +421,6 @@ def main():
     ap.add_argument("--refresh-recent-pages", type=int, default=2)
     ap.add_argument("--init-schema-only", action="store_true")
     ap.add_argument("--skip-schema", action="store_true")
-    ap.add_argument("--failed-output", default="failed_pages.json")
     args = ap.parse_args()
     if args.shard_count < 1 or not 0 <= args.shard_index < args.shard_count:
         ap.error("shard-index must be within shard-count")
@@ -435,20 +434,24 @@ def main():
     conn1 = conn2 = None
     failures = []
     try:
+        print("[startup] Connecting to both databases...", flush=True)
         conn1 = connect_db(url1, f"video-collector-{args.shard_index}-db1")
         conn2 = connect_db(url2, f"video-collector-{args.shard_index}-db2")
+        print("[database] Connected to both databases.", flush=True)
         if not args.skip_schema:
             init_schema(conn1, conn2)
         if args.init_schema_only:
             return 0
         channels = load_channels(args.channels, args.min_videos)
+        print(f"[inventory] eligible or unknown-count channels: {len(channels):,}", flush=True)
         if args.max_channels:
             channels = channels[:args.max_channels]
+        print(f"[inventory] candidates after max-channel limit: {len(channels):,}", flush=True)
         channels = [slug for slug in channels
                     if int(hashlib.sha256(slug.encode()).hexdigest()[:8], 16) % args.shard_count == args.shard_index]
         print(f"[shard {args.shard_index}/{args.shard_count}] channels={len(channels):,}; workers={args.workers}", flush=True)
         if not channels:
-            Path(args.failed_output).write_text("[]\n", encoding="utf-8")
+            print(f"[shard {args.shard_index}] no channels assigned; nothing to scrape.", flush=True)
             return 0
         with conn1.cursor() as cur:
             cur.execute("SELECT channel_slug,page FROM video_scrape_completed_pages WHERE channel_slug = ANY(%s)", (channels,))
@@ -490,6 +493,8 @@ def main():
             if slug not in states:
                 continue
             total, per_page = states[slug]
+            if total < args.min_videos:
+                continue
             pages = max(1, math.ceil(total / per_page))
             if args.max_pages:
                 pages = min(pages, args.max_pages)
@@ -515,14 +520,17 @@ def main():
                 row_count += saved
                 if page_count % 100 == 0:
                     print(f"[progress] pages={page_count:,}; rows={row_count:,}; failures={len(failures):,}", flush=True)
-        Path(args.failed_output).write_text(json.dumps(failures, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         print(f"[done] pages processed={page_count:,}; normalized rows={row_count:,}; failures={len(failures):,}", flush=True)
+        if failures:
+            print(f"[failure-summary] {len(failures):,} page(s) failed; see the [error] lines above.", file=sys.stderr, flush=True)
         return 1 if failures else 0
     except Exception as exc:
         print(f"FATAL: {exc}", file=sys.stderr, flush=True)
-        Path(args.failed_output).write_text(json.dumps([{"fatal_error": str(exc)}], indent=2) + "\n", encoding="utf-8")
         return 1
     finally:
         for conn in (conn1, conn2):
             if conn is not None:
                 conn.close()
+
+if __name__ == "__main__":
+    raise SystemExit(main())
