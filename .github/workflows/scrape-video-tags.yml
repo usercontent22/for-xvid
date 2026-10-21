@@ -4,22 +4,18 @@ on:
   workflow_dispatch:
     inputs:
       max_rows_per_db:
-        description: "Safety limit per database per shard (0 = process all pending rows)"
+        description: "Safety limit per database per shard (0 = all pending)"
         required: false
         default: "0"
         type: string
       workers_per_shard:
-        description: "Concurrent HTML requests per job; 4 workers across 20 jobs gives up to 80 requests"
+        description: "Concurrent HTML requests per job"
         required: false
         default: "4"
         type: choice
-        options:
-          - "1"
-          - "2"
-          - "4"
-          - "6"
+        options: ["1", "2", "4", "6"]
       request_delay_seconds:
-        description: "Base delay per HTTP request; random 0..this is added"
+        description: "Base HTTP delay; random 0..delay is added"
         required: false
         default: "1.0"
         type: string
@@ -34,34 +30,29 @@ permissions:
 jobs:
   prepare:
     if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
-    name: Prepare tag-scrape tracking
+    name: Verify existing tag schema
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
       DATABASE_URL_1: ${{ secrets.DATABASE_URL_1 }}
       DATABASE_URL_2: ${{ secrets.DATABASE_URL_2 }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
-      - name: Set up Python
-        uses: actions/setup-python@v7
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: requirements.txt
-      - name: Install dependencies
-        run: python -m pip install -r requirements.txt
-      - name: Run tests
-        run: python -m unittest discover -s tests -v
-      - name: Compile Python sources
-        run: python -m py_compile scripts/collect_channel_videos.py scripts/scrape_video_tags.py
-      - name: Initialize tag-scrape tracking in both databases
+      - run: python -m pip install -r requirements.txt
+      - run: python -m unittest discover -s tests -v
+      - run: python -m py_compile scripts/collect_channel_videos.py scripts/scrape_video_tags.py
+      - name: Verify columns without changing schema
         run: python scripts/scrape_video_tags.py --init-schema-only
 
   scrape:
     if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     needs: prepare
-    name: Scrape tags shard ${{ matrix.shard }} / 20
+    name: Scrape tags shard ${{ matrix.shard }} / 24
     runs-on: ubuntu-latest
     timeout-minutes: 360
     strategy:
@@ -80,21 +71,18 @@ jobs:
       WORKERS: ${{ github.event_name == 'workflow_dispatch' && inputs.workers_per_shard || '4' }}
       REQUEST_DELAY: ${{ github.event_name == 'workflow_dispatch' && inputs.request_delay_seconds || '1.0' }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
-      - name: Set up Python
-        uses: actions/setup-python@v7
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: requirements.txt
-      - name: Install dependencies
-        run: python -m pip install -r requirements.txt
-      - name: Scrape missing video tags from both databases
+      - run: python -m pip install -r requirements.txt
+      - name: Scrape pending tags from both databases
         run: |
           python scripts/scrape_video_tags.py \
             --shard-index "$SHARD_INDEX" \
-            --shard-count 20 \
+            --shard-count 24 \
             --workers "$WORKERS" \
             --delay "$REQUEST_DELAY" \
             --max-rows-per-db "$MAX_ROWS_PER_DB" \
