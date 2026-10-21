@@ -1,4 +1,7 @@
 import json
+import os
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -106,6 +109,23 @@ class MetadataNormalizationTests(unittest.TestCase):
     def test_missing_api_count_falls_back_to_returned_page_count(self):
         self.assertEqual(reported_video_count({"nb_videos": None, "videos": [{}] * 10}), 10)
         self.assertEqual(reported_video_count({"videos": []}), 0)
+
+
+    def test_command_line_entry_point_executes_main(self):
+        env = os.environ.copy()
+        env.pop("DATABASE_URL_1", None)
+        env.pop("DATABASE_URL_2", None)
+        script = Path(__file__).resolve().parents[1] / "scripts" / "collect_channel_videos.py"
+        result = subprocess.run(
+            [sys.executable, str(script)],
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("Set GitHub Actions secrets DATABASE_URL_1 and DATABASE_URL_2", result.stderr)
 
 
 if __name__ == "__main__":
