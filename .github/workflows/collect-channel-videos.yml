@@ -1,0 +1,127 @@
+name: Collect channel video metadata
+
+on:
+  workflow_dispatch:
+    inputs:
+      max_channels:
+        description: "Global channel limit for a safe test run (0 = all channels)"
+        required: false
+        default: "0"
+        type: string
+      max_pages:
+        description: "Maximum pages per channel (0 = all pages)"
+        required: false
+        default: "0"
+        type: string
+      min_videos:
+        description: "Skip channels below this inventory count (0 = include all)"
+        required: false
+        default: "10"
+        type: string
+      workers_per_shard:
+        description: "Concurrent source requests per job; 2 is the recommended starting point"
+        required: false
+        default: "2"
+        type: choice
+        options:
+          - "1"
+          - "2"
+          - "3"
+          - "4"
+      request_delay_seconds:
+        description: "Base seconds to pause before each source request; random 0..this is added"
+        required: false
+        default: "1.0"
+        type: string
+      refresh_recent_pages:
+        description: "Re-fetch first N pages per channel on scheduled runs (0 disables refresh)"
+        required: false
+        default: "2"
+        type: string
+  schedule:
+    - cron: "17 3 * * *"
+
+permissions:
+  contents: read
+
+# Avoid two full crawls overlapping.
+concurrency:
+  group: xvid-channel-video-collector
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Prepare database schema
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DATABASE_URL_1: ${{ secrets.DATABASE_URL_1 }}
+      DATABASE_URL_2: ${{ secrets.DATABASE_URL_2 }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Test URL and metadata normalization
+        run: python -m unittest discover -s tests -v
+      - name: Validate database secrets and create tables
+        run: python scripts/collect_channel_videos.py --init-schema-only
+
+  collect:
+    name: Scrape shard ${{ matrix.shard }} / 20
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+    env:
+      DATABASE_URL_1: ${{ secrets.DATABASE_URL_1 }}
+      DATABASE_URL_2: ${{ secrets.DATABASE_URL_2 }}
+      SHARD_INDEX: ${{ matrix.shard }}
+      MAX_CHANNELS: ${{ inputs.max_channels || '0' }}
+      MAX_PAGES: ${{ inputs.max_pages || '0' }}
+      MIN_VIDEOS: ${{ inputs.min_videos || '10' }}
+      WORKERS: ${{ inputs.workers_per_shard || '2' }}
+      REQUEST_DELAY: ${{ inputs.request_delay_seconds || '1.0' }}
+      REFRESH_RECENT_PAGES: ${{ inputs.refresh_recent_pages || '2' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Collect channel videos
+        run: |
+          python scripts/collect_channel_videos.py \
+            --channels channels.json \
+            --shard-index "$SHARD_INDEX" \
+            --shard-count 20 \
+            --workers "$WORKERS" \
+            --delay "$REQUEST_DELAY" \
+            --min-videos "$MIN_VIDEOS" \
+            --max-channels "$MAX_CHANNELS" \
+            --max-pages "$MAX_PAGES" \
+            --refresh-recent-pages "$REFRESH_RECENT_PAGES" \
+            --skip-schema
+      - name: Upload failed-page report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: failed-pages-shard-${{ matrix.shard }}
+          path: failed_pages.json
+          if-no-files-found: ignore
+          retention-days: 14
