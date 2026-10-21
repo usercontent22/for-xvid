@@ -35,4 +35,4 @@ Go to **Actions → Collect channel video metadata → Run workflow**. For the i
 
 The matrix has 20 stable shards. The default is one request worker per shard and a one-second base pause plus a random pause. Raise parallelism only gradually, while watching for 429s and respecting the source website's terms and rate limits. Temporary 429/5xx responses use exponential backoff. Each runner job has a six-hour timeout. Public-repository standard runners are free, but the account still has a concurrency ceiling.
 
-The workflow runs daily and refreshes the first two pages of each channel to capture new uploads. Completed older pages are skipped. Failed pages are left uncheckpointed and retried on a later run; each shard uploads a `failed_pages.json` artifact for diagnosis.
+The workflow runs daily and refreshes the first two pages of each channel to capture new uploads. Completed older pages are skipped. Failed pages are left uncheckpointed and retried on a later run. Errors and progress are printed directly in the GitHub Actions logs; no workflow artifacts are created.
