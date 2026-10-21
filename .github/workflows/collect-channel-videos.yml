@@ -19,9 +19,9 @@ on:
         default: "10"
         type: string
       workers_per_shard:
-        description: "Concurrent source requests per job; 2 is the recommended starting point"
+        description: "Concurrent source requests per job; start with 1 and increase only after checking source rate limits"
         required: false
-        default: "2"
+        default: "1"
         type: choice
         options:
           - "1"
@@ -90,7 +90,7 @@ jobs:
       MAX_CHANNELS: ${{ inputs.max_channels || '0' }}
       MAX_PAGES: ${{ inputs.max_pages || '0' }}
       MIN_VIDEOS: ${{ inputs.min_videos || '10' }}
-      WORKERS: ${{ inputs.workers_per_shard || '2' }}
+      WORKERS: ${{ inputs.workers_per_shard || '1' }}
       REQUEST_DELAY: ${{ inputs.request_delay_seconds || '1.0' }}
       REFRESH_RECENT_PAGES: ${{ inputs.refresh_recent_pages || '2' }}
     steps:
