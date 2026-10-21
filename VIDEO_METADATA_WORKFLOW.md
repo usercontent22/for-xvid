@@ -13,6 +13,8 @@ Prefer Neon's pooled connection strings for application workloads. Never commit 
 
 The workflow reads `channels.json` and creates `public.videos` in both databases with:
 
+Channel selection treats a known inventory count of 10 or above as eligible and skips known counts below 10. If `total_videos` is null or blank, the channel is still probed; the API's `nb_videos` count determines eligibility (falling back to the returned page item count if the API omits its total). If the API count is below 10, the probe is checkpointed but its video rows are not ingested. This avoids silently losing channels whose inventory count is unknown.
+
 `url` (primary key), `title`, `img`, `rating`, `rating_percentage`, `views`, `duration`, `duration_seconds`, `channel_name`, and `tags`.
 
 - Video URL: strips `/prof-video-click/upload/<channel>/`; e.g. `/prof-video-click/upload/channel/hvtebdd/shy_misty_in` becomes `/hvtebdd/shy_misty_in`.
