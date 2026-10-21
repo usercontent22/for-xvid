@@ -46,6 +46,8 @@ The separate **Scrape video tags** workflow visits each pending video URL and pa
 
 Each value is split on commas, trimmed, deduplicated, and stored as a sorted `text[]` in `public.videos.tags`. The scraper does not infer categories.
 
+Before each HTML request, a stored path like `/aalcci2892/naughty_babes_aj_applegate_and_brookl` is requested as `/video.aalcci2892/naughty_babes_aj_applegate_and_brookl`. This rewrite affects the request URL only; the database's original `url` value is not modified. Already-prefixed URLs are not prefixed twice.
+
 The tag workflow runs automatically after a successful **Collect channel video metadata** workflow on `main`, and it can also be started manually from **Actions → Scrape video tags**. It uses 20 matrix shards and four HTTP workers per shard by default (up to 80 concurrent source requests if all jobs are running). Requests have timeouts, retries, exponential backoff, and a configurable delay. Start with a manual test using `max_rows_per_db=5`; use `0` for the full pending backlog.
 
 For resumability, the tag workflow adds `tags_scraped_at` to `public.videos` and a partial index for rows that still need processing. The timestamp is set even when the page has no keyword tags, so such pages are not fetched again on every run. Existing non-empty tags are preserved. Failed requests are logged and left pending so a later run can retry them.
