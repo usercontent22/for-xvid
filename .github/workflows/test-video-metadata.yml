@@ -36,4 +36,4 @@ jobs:
       - name: Run normalizer tests
         run: python -m unittest discover -s tests -v
       - name: Compile Python sources
-        run: python -m py_compile scripts/collect_channel_videos.py tests/test_normalizers.py
+        run: python -m py_compile scripts/collect_channel_videos.py scripts/scrape_video_tags.py tests/test_normalizers.py tests/test_video_tags.py
