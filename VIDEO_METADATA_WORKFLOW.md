@@ -1,0 +1,36 @@
+# Video metadata collection workflow
+
+## Configure secrets
+
+In **Settings → Secrets and variables → Actions**, create:
+
+- `DATABASE_URL_1`: PostgreSQL connection string for database 1.
+- `DATABASE_URL_2`: PostgreSQL connection string for a *different* database 2.
+
+Prefer Neon's pooled connection strings for application workloads. Never commit connection strings to this public repository. The collector refuses URLs that appear to identify the same database.
+
+## What it writes
+
+The workflow reads `channels.json` and creates `public.videos` in both databases with:
+
+`url` (primary key), `title`, `img`, `rating`, `rating_percentage`, `views`, `duration`, `duration_seconds`, `channel_name`, and `tags`.
+
+- Video URL: strips `/prof-video-click/upload/<channel>/`; e.g. `/prof-video-click/upload/channel/hvtebdd/shy_misty_in` becomes `/hvtebdd/shy_misty_in`.
+- Thumbnail: removes the domain. Ordinary thumbnails become `/path/to/image.jpg`; thumbnails from `thumbs-gcore.xvideos-cdn.com` become `g/path/to/image.jpg`.
+- Views: values such as `907.6k` become integer `907600`.
+- Duration: keeps source text and adds `duration_seconds` where it can parse a duration.
+- Rating: keeps the source string and stores a numeric percentage separately.
+
+Rows are assigned using `SHA-256(url) first byte modulo 2`, which keeps URLs on the same database across reruns while balancing both projects approximately evenly. This prevents a duplicate URL from living in both databases due to different crawler shards.
+
+Two small checkpoint tables live only in database 1: `video_scrape_channel_state` and `video_scrape_completed_pages`. Pages are marked complete after both database writes. If a run stops between database commits, a retry safely upserts the page again. Non-empty existing tags are not overwritten by an empty tag list from this collector.
+
+The supplied API sample does not include a tags field. New rows therefore start with an empty tags array. Categories are deliberately out of scope; no category data or category tables are created.
+
+## Run it
+
+Go to **Actions → Collect channel video metadata → Run workflow**. For the initial smoke test, use `max_channels=20`, `max_pages=2`, and `workers_per_shard=1`; inspect both databases before a full run. For the full crawl, set both limits to `0`.
+
+The matrix has 20 stable shards. The default is one request worker per shard and a one-second base pause plus a random pause. Raise parallelism only gradually, while watching for 429s and respecting the source website's terms and rate limits. Temporary 429/5xx responses use exponential backoff. Each runner job has a six-hour timeout. Public-repository standard runners are free, but the account still has a concurrency ceiling.
+
+The workflow runs daily and refreshes the first two pages of each channel to capture new uploads. Completed older pages are skipped. Failed pages are left uncheckpointed and retried on a later run; each shard uploads a `failed_pages.json` artifact for diagnosis.
