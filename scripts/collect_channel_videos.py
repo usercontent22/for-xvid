@@ -269,19 +269,42 @@ def load_channels(path, minimum):
         raw = recovered
     if not isinstance(raw, list):
         raise ValueError("channels.json must be a JSON array")
-    selected = {}
+    selected = set()
     for row in raw:
         if not isinstance(row, dict):
             continue
         slug = channel_slug(row.get("href") or row.get("url") or "")
-        count = row.get("total_videos", row.get("video_count"))
+        count = row.get("total_videos")
+        if count is None:
+            count = row.get("video_count")
+        if not slug:
+            continue
+        # A null/missing inventory count is unknown, not zero: include it for
+        # an API probe and decide eligibility from that channel's real count.
+        if count is None or (isinstance(count, str) and count.strip().lower() in {"", "null", "none"}):
+            selected.add(slug)
+            continue
+        if isinstance(count, bool):
+            continue
         try:
-            count = int(str(count).replace(",", ""))
+            count = int(str(count).replace(",", "").strip())
         except (ValueError, TypeError):
             continue
-        if slug and count >= minimum:
-            selected[slug] = max(selected.get(slug, 0), count)
+        if count >= minimum:
+            selected.add(slug)
     return sorted(selected)
+
+
+def reported_video_count(data):
+    """Return the API's true count, falling back to this page's item count."""
+    value = data.get("nb_videos")
+    if value is not None and str(value).strip() != "":
+        try:
+            return max(0, int(str(value).replace(",", "").strip()))
+        except (TypeError, ValueError):
+            pass
+    items = data.get("videos")
+    return len(items) if isinstance(items, (list, dict)) else 0
 
 
 def bucket_for(url):
@@ -438,9 +461,15 @@ def main():
         def probe(slug):
             data = request_page(slug, 0, args.retries, args.timeout, args.delay)
             items = data["videos"]
-            total = int(data.get("nb_videos") or len(items) or 0)
+            total = reported_video_count(data)
             per_page = max(1, int(data.get("nb_per_page") or len(items) or 36))
-            saved = writer.save(slug, 0, items, (total, per_page))
+            eligible = total >= args.min_videos
+            # Don't ingest page zero for a channel whose actual API total is
+            # below the threshold. Still checkpoint the probe so its count is
+            # known and it can be reconsidered on refresh runs.
+            saved = writer.save(slug, 0, items if eligible else [], (total, per_page))
+            if not eligible:
+                print(f"[skip] channel={slug}: API reports {total} videos (< {args.min_videos})", flush=True)
             return slug, total, per_page, saved
 
         page_count = row_count = 0
@@ -497,7 +526,3 @@ def main():
         for conn in (conn1, conn2):
             if conn is not None:
                 conn.close()
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
