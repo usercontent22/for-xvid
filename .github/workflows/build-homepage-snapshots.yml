@@ -1,0 +1,60 @@
+name: Build homepage snapshots
+
+on:
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "Number of homepage days to precompute (1–7)"
+        required: false
+        default: "3"
+        type: string
+      candidate_limit:
+        description: "Candidates per ranking/source database"
+        required: false
+        default: "3000"
+        type: string
+  schedule:
+    - cron: "47 9 * * *"
+  workflow_run:
+    workflows: ["Scrape video tags"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: homepage-snapshot-builder
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      DATABASE_URL_1: ${{ secrets.DATABASE_URL_1 }}
+      DATABASE_URL_2: ${{ secrets.DATABASE_URL_2 }}
+      SNAPSHOT_DAYS: ${{ github.event_name == 'workflow_dispatch' && inputs.days || '3' }}
+      CANDIDATE_LIMIT: ${{ github.event_name == 'workflow_dispatch' && inputs.candidate_limit || '3000' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Run unit tests
+        run: python -m unittest discover -s tests -v
+      - name: Initialize homepage snapshot table
+        run: python scripts/build_homepage_snapshots.py --init-schema-only
+      - name: Generate the next homepage windows
+        run: |
+          python scripts/build_homepage_snapshots.py \
+            --days "$SNAPSHOT_DAYS" \
+            --candidate-limit "$CANDIDATE_LIMIT" \
+            --skip-schema
