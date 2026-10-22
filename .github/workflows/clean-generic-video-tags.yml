@@ -14,7 +14,7 @@ on:
         default: ""
         type: string
       batch_size:
-        description: "Rows per small database commit"
+        description: "Rows per small database transaction; default 5000"
         required: true
         default: "5000"
         type: string
