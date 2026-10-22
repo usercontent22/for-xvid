@@ -18,6 +18,12 @@ on:
         required: true
         default: "5000"
         type: string
+  # One-time approved production cleanup trigger. This trigger will be removed
+  # after this run completes successfully.
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/clean-generic-video-tags.yml"
 
 permissions:
   contents: read
@@ -29,9 +35,9 @@ jobs:
     env:
       DATABASE_URL_1: ${{ secrets.DATABASE_URL_1 }}
       DATABASE_URL_2: ${{ secrets.DATABASE_URL_2 }}
-      APPLY_CLEANUP: ${{ inputs.apply_cleanup }}
-      CONFIRMATION: ${{ inputs.confirmation }}
-      BATCH_SIZE: ${{ inputs.batch_size }}
+      APPLY_CLEANUP: ${{ github.event_name == 'push' && 'true' || inputs.apply_cleanup }}
+      CONFIRMATION: ${{ github.event_name == 'push' && 'REMOVE GENERIC TAGS FROM ALL VIDEO ROWS' || inputs.confirmation }}
+      BATCH_SIZE: ${{ github.event_name == 'push' && '5000' || inputs.batch_size || '5000' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
