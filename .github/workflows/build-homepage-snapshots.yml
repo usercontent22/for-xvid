@@ -16,7 +16,7 @@ on:
   schedule:
     - cron: "47 9 * * *"
   workflow_run:
-    workflows: ["Scrape video tags"]
+    workflows: ["Scrape video tags", "Clean generic video tags"]
     types: [completed]
     branches: [main]
 
