@@ -18,13 +18,6 @@ on:
         required: true
         default: "5000"
         type: string
-  # One-time approved production cleanup trigger. This trigger will be removed
-  # after this run completes successfully.
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/clean-generic-video-tags.yml"
-
 permissions:
   contents: read
 
