@@ -1,11 +1,6 @@
 {% extends "base.html" %}
-{% if video %}
-{% block title %}{{ page_title }} — XXX World{% endblock %}
-{% block description %}Explore this video preview, details, tags, channel, and related picks on XXX World.{% endblock %}
-{% else %}
-{% block title %}Video temporarily unavailable — XXX World{% endblock %}
-{% block description %}This video could not be loaded right now.{% endblock %}
-{% endif %}
+{% block title %}{% if video %}{{ page_title }}{% else %}Video temporarily unavailable{% endif %} — XXX World{% endblock %}
+{% block description %}{% if video %}Explore this video preview, details, tags, channel, and related picks on XXX World.{% else %}This video could not be loaded right now.{% endif %}{% endblock %}
 {% block head_extra %}
 {% if video %}
 <meta property="og:type" content="video.other">
