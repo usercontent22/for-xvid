@@ -21,7 +21,7 @@ except ModuleNotFoundError:  # support direct execution: python scripts/clean_ge
     from catalog_utils import GENERIC_TAG_KEYS
 
 CONFIRM_PHRASE = "REMOVE GENERIC TAGS FROM ALL VIDEO ROWS"
-BATCH_SIZE_DEFAULT = 1000
+BATCH_SIZE_DEFAULT = 5000
 
 GENERIC_ROW_COUNT_SQL = """
 SELECT COUNT(*)
