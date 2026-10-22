@@ -66,7 +66,7 @@ A live audit on 2026-10-22 found:
 
 - `for-categories`: 648,710 video rows; 648,597 rows with at least one tag; 113 rows still pending tag scraping.
 - `gitrepo-updates`: 649,948 video rows; 649,868 rows with at least one tag; 80 rows still pending tag scraping.
-- Combined: 1,298,658 rows; 1,298,465 rows with tags; 31,547,215 stored tag entries.
+- Combined: 1,298,658 rows; 1,298,465 rows with tags; 31,549,215 stored tag entries.
 - The two source tables each had the URL primary-key index and tag-scrape pending index. Search/channel/ranking indexes were not previously present.
 
 Use the report from the current run before making capacity or index decisions; row counts and storage sizes change as scraping continues.
