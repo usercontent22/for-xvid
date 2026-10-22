@@ -19,6 +19,11 @@ from urllib.parse import urljoin, urlparse
 import psycopg
 import requests
 
+try:
+    from scripts.catalog_utils import filter_generic_tags
+except ModuleNotFoundError:  # support direct execution: python scripts/collect_channel_videos.py
+    from catalog_utils import filter_generic_tags
+
 BASE = "https://www.xvideos.com"
 HEADERS = {
     "Accept": "application/json, text/javascript, */*; q=0.01",
@@ -167,7 +172,7 @@ def clean_tags(value):
         items = re.split(r"[,|]", value)
     else:
         items = []
-    return list(dict.fromkeys(str(v).strip() for v in items if str(v).strip()))
+    return filter_generic_tags(items)
 
 
 def normalize(item, fallback_slug):
