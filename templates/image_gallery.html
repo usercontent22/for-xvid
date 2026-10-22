@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}{{ page_title }} — XXX World{% endblock %}
+{% block description %}Browse thumbnail frames and indexed image previews for {{ video.title }}.{% endblock %}
+{% block head_extra %}
+<meta property="og:title" content="{{ page_title }}">
+{% if video.thumbnail_url %}<meta property="og:image" content="{{ video.thumbnail_url }}">{% endif %}
+{% endblock %}
+{% block content %}
+<section class="listing-page image-gallery-page">
+  <div class="breadcrumbs"><a href="/">Home</a><span aria-hidden="true">/</span><a href="{{ video.video_href }}">{{ video.title }}</a><span aria-hidden="true">/</span><span>Image frames</span></div>
+  <div class="listing-heading"><div><p class="eyebrow">IMAGE DISCOVERY</p><h1>Frames from this video</h1><p class="section-subtitle">{{ video.title }}</p></div><a class="button button-quiet" href="{{ video.video_href }}">Back to video</a></div>
+  <div class="info-strip"><span class="info-strip-icon" aria-hidden="true">i</span><div><strong>Thirty possible preview frames</strong><p>Frames are generated from the source thumbnail path. If a numbered frame is not available at the source, its image may show as missing.</p></div></div>
+  <div class="frame-grid">
+  {% for frame in frames %}
+    <figure class="frame-card">
+      <a href="{{ frame.url }}" target="_blank" rel="noopener noreferrer">
+        <img src="{{ frame.url }}" alt="{{ video.title }} — frame {{ frame.number }}" loading="lazy" decoding="async">
+        <span class="frame-number">Frame {{ frame.number }}</span>
+      </a>
+      <figcaption><a href="{{ video.video_href }}">{{ video.title }}</a></figcaption>
+    </figure>
+  {% endfor %}
+  </div>
+</section>
+{% endblock %}

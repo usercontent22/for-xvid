@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101014">
+  <meta name="robots" content="index,follow,max-image-preview:large">
+  <title>{% block title %}XXX World — Discover your next favorite{% endblock %}</title>
+  <meta name="description" content="{% block description %}Discover videos, explore categories, and find channels on XXX World.{% endblock %}">
+  {% if static_assets_base_url %}
+  <link rel="icon" href="{{ static_assets_base_url }}/favicon.ico">
+  <link rel="apple-touch-icon" href="{{ static_assets_base_url }}/xxxworld-icon-256.webp">
+  {% endif %}
+  <link rel="stylesheet" href="/styles.css?v=1">
+  {% block head_extra %}{% endblock %}
+</head>
+<body>
+  <div class="site-shell">
+    <header class="site-header">
+      <div class="header-inner">
+        <a class="brand" href="/" aria-label="XXX World home">
+          {% if static_assets_base_url %}
+          <img class="brand-logo" src="{{ static_assets_base_url }}/xxxworld-logo.svg" alt="XXX World">
+          {% else %}
+          <span class="brand-mark" aria-hidden="true">X</span><span class="brand-wordmark">XXX <b>World</b></span>
+          {% endif %}
+        </a>
+        <form class="search-form" action="/search" method="get" role="search">
+          <label class="sr-only" for="site-search">Search videos, categories, or channels</label>
+          <input id="site-search" type="search" name="q" maxlength="120" placeholder="Search videos, tags, channels…" value="{{ request.args.get('q', '') }}">
+          <button type="submit" aria-label="Search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.4"></circle><path d="m16 16 4.2 4.2"></path></svg></button>
+        </form>
+        <button class="mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="primary-nav">Menu</button>
+        <nav class="primary-nav" id="primary-nav" aria-label="Main navigation">
+          <a href="/">Home</a>
+          <a href="/browse?section=popular">Popular</a>
+          <a href="/browse?section=discovery">Discover</a>
+          <span class="age-pill">18+</span>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main-content">
+      {% block content %}{% endblock %}
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-main">
+        <a class="brand brand-footer" href="/" aria-label="XXX World home">
+          {% if static_assets_base_url %}
+          <img class="brand-logo" src="{{ static_assets_base_url }}/xxxworld-logo.svg" alt="XXX World">
+          {% else %}
+          <span class="brand-mark" aria-hidden="true">X</span><span class="brand-wordmark">XXX <b>World</b></span>
+          {% endif %}
+        </a>
+        <p>Discover more. Find your favorites. Keep it simple.</p>
+        <span class="footer-age">Adults 18+ only</span>
+      </div>
+      <div class="footer-bottom">
+        <span>© {{ current_year }} XXX World</span>
+        <span>Built for discovery · Designed to load lightly</span>
+      </div>
+    </footer>
+  </div>
+
+  <section class="age-gate" id="age-gate" role="dialog" aria-modal="true" aria-labelledby="age-gate-title" hidden>
+    <div class="age-gate-panel">
+      <div class="age-gate-symbol" aria-hidden="true">18+</div>
+      <p class="eyebrow">Adult content notice</p>
+      <h2 id="age-gate-title">Are you 18 or older?</h2>
+      <p>This website is intended for adults only. By continuing, you confirm that you are at least 18 years old, or the age of majority where you live, whichever is higher.</p>
+      <button class="button button-primary button-wide" id="age-confirm" type="button">I’m 18 or older — enter</button>
+      <a class="button button-quiet button-wide" href="https://www.google.com/" rel="nofollow">Leave this website</a>
+      <p class="age-gate-note">Your choice is stored in this browser. This notice is not identity or legal-age verification.</p>
+    </div>
+  </section>
+  <script src="/app.js?v=1" defer></script>
+</body>
+</html>

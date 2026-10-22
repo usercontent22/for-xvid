@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}{% if server_error %}Something went wrong{% else %}Page not found{% endif %} — XXX World{% endblock %}
+{% block content %}
+<section class="empty-state error-state">
+  <span class="empty-icon" aria-hidden="true">{% if server_error %}↻{% else %}404{% endif %}</span>
+  <p class="eyebrow">A LITTLE DETOUR</p>
+  <h1>{% if server_error %}That didn’t go as planned.{% else %}This page isn’t here.{% endif %}</h1>
+  <p>{% if server_error %}Please try again in a moment.{% else %}The link may be old, or the page may have moved.{% endif %}</p>
+  <a class="button button-primary" href="/">Back to XXX World</a>
+</section>
+{% endblock %}

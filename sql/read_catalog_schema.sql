@@ -2,6 +2,7 @@
 -- Provision/size a separate catalog database before applying this file.
 -- The source databases remain authoritative; this catalog is disposable/rebuildable.
 -- Expected source sync field: public.videos.catalog_updated_at (see STAGE2_READ_ARCHITECTURE.md).
+-- A batch sync must populate tag_keys as lowercase trimmed tag values.
 
 CREATE TABLE IF NOT EXISTS public.catalog_videos (
     url TEXT PRIMARY KEY,
@@ -16,8 +17,14 @@ CREATE TABLE IF NOT EXISTS public.catalog_videos (
         regexp_replace(lower(COALESCE(channel_name, '')), '[^[:alnum:]]', '', 'g')
     ) STORED,
     tags TEXT[] NOT NULL DEFAULT '{}'::text[],
+    tag_keys TEXT[] NOT NULL DEFAULT '{}'::text[],
     search_vector TSVECTOR GENERATED ALWAYS AS (
-        to_tsvector('simple'::regconfig, COALESCE(title, ''))
+        to_tsvector(
+            'simple'::regconfig,
+            COALESCE(title, '') || ' ' ||
+            COALESCE(channel_name, '') || ' ' ||
+            array_to_string(tags, ' ')
+        )
     ) STORED,
     source_updated_at TIMESTAMPTZ NOT NULL,
     catalog_synced_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -30,11 +37,11 @@ CREATE TABLE IF NOT EXISTS public.catalog_sync_state (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Tag containment / overlap, e.g. tags @> ARRAY['amateur'] or tags && ARRAY[...].
-CREATE INDEX IF NOT EXISTS catalog_videos_tags_gin_idx
-    ON public.catalog_videos USING GIN (tags);
+-- Normalized tag containment, for category links insensitive to source tag casing.
+CREATE INDEX IF NOT EXISTS catalog_videos_tag_keys_gin_idx
+    ON public.catalog_videos USING GIN (tag_keys);
 
--- Word-based title search.
+-- Word-based search across title, channel name and tags.
 CREATE INDEX IF NOT EXISTS catalog_videos_search_vector_gin_idx
     ON public.catalog_videos USING GIN (search_vector);
 
@@ -62,5 +69,5 @@ CREATE INDEX IF NOT EXISTS catalog_videos_rating_rank_idx
 -- CREATE INDEX catalog_videos_title_trgm_idx
 --     ON public.catalog_videos USING GIN (title gin_trgm_ops);
 
--- Existing pages can keep using public.homepage_snapshots in the source/read DB
--- or move the same snapshot table here after the catalog project is provisioned.
+-- Existing public.homepage_snapshots table can remain in the source/read DB
+-- or move here after the read catalog is provisioned.

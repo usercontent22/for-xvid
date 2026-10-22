@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} — XXX World{% endblock %}
+{% block description %}{{ description }}{% endblock %}
+{% block head_extra %}
+{% if is_channel %}<link rel="stylesheet" href="/channel.css?v=1">{% endif %}
+{% endblock %}
+{% block content %}
+<section class="listing-page">
+  <div class="breadcrumbs"><a href="/">Home</a><span aria-hidden="true">/</span><span>{{ title }}</span></div>
+  <div class="listing-heading {% if is_channel %}listing-heading-channel{% endif %}">
+    {% if is_channel %}
+    <div class="channel-title-group">
+      <div class="channel-profile-avatar">
+        {% if channel_avatar_url %}<img src="{{ channel_avatar_url }}" alt="" loading="eager">{% else %}<span>{{ title[:1] }}</span>{% endif %}
+      </div>
+      <div class="channel-title-copy">
+        <p class="eyebrow"><span class="eyebrow-dot"></span> CHANNEL PROFILE</p>
+        <h1>{{ title }}</h1>
+        <p class="section-subtitle">{{ description }}</p>
+      </div>
+    </div>
+    {% else %}
+    <div><p class="eyebrow"><span class="eyebrow-dot"></span> XXX WORLD COLLECTION</p><h1>{{ title }}</h1><p class="section-subtitle">{{ description }}</p></div>
+    {% endif %}
+    <a class="button button-quiet" href="/">Back to home</a>
+  </div>
+
+  {% if snapshot_notice %}
+  <div class="info-strip"><span class="info-strip-icon" aria-hidden="true">i</span><div><strong>Curated snapshot mode</strong><p>This page is showing the prepared highlights only. Full-catalog search and channel/category pagination are designed to use a separate indexed read catalog, so these pages never scan the large source tables.</p></div></div>
+  {% endif %}
+
+  {% if videos %}
+  <div class="video-grid video-grid-listing">
+    {% for video in videos %}{% include "_video_card.html" %}{% endfor %}
+  </div>
+  <nav class="pagination" aria-label="Collection pagination">
+    {% if previous_url %}<a class="page-arrow" href="{{ previous_url }}">← <span>Previous</span></a>{% else %}<span class="page-arrow is-disabled">← <span>Previous</span></span>{% endif %}
+    {% if page and pages %}<span class="page-count">Page <b>{{ page }}</b> of <b>{{ pages }}</b></span>{% elif catalog_ready %}<span class="page-count">Indexed results</span>{% else %}<span class="page-count">Prepared highlights</span>{% endif %}
+    {% if next_url %}<a class="page-arrow page-arrow-next" href="{{ next_url }}"><span>Next</span> →</a>{% else %}<span class="page-arrow page-arrow-next is-disabled"><span>Next</span> →</span>{% endif %}
+  </nav>
+  {% else %}
+  <div class="empty-state">
+    <span class="empty-icon" aria-hidden="true">⌕</span>
+    <h2>No matches in this collection yet</h2>
+    {% if snapshot_notice %}<p>This prepared selection is intentionally small. The full indexed catalog is not connected yet, so this page will not scan the source databases.</p>{% else %}<p>Try another search or head back to the homepage to explore the current highlights.</p>{% endif %}
+    <a class="button button-primary" href="/">Explore XXX World</a>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

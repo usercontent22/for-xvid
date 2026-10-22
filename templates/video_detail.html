@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% if video %}
+{% block title %}{{ page_title }} — XXX World{% endblock %}
+{% block description %}Explore this video preview, details, tags, channel, and related picks on XXX World.{% endblock %}
+{% else %}
+{% block title %}Video temporarily unavailable — XXX World{% endblock %}
+{% block description %}This video could not be loaded right now.{% endblock %}
+{% endif %}
+{% block head_extra %}
+{% if video %}
+<meta property="og:type" content="video.other">
+<meta property="og:title" content="{{ video.title }}">
+{% if video.thumbnail_url %}<meta property="og:image" content="{{ video.thumbnail_url }}">{% endif %}
+{% endif %}
+{% endblock %}
+{% block content %}
+<section class="detail-page">
+  {% if not video %}
+  <div class="empty-state">
+    <span class="empty-icon" aria-hidden="true">↻</span>
+    <h1>Video temporarily unavailable</h1>
+    <p>The catalog could not be reached. This page uses the existing video URL key and does not run a full-table lookup.</p>
+    <a class="button button-primary" href="/">Return home</a>
+  </div>
+  {% else %}
+  <div class="breadcrumbs"><a href="/">Home</a><span aria-hidden="true">/</span><a href="/browse?section=popular">Videos</a><span aria-hidden="true">/</span><span>Details</span></div>
+  <div class="detail-layout">
+    <div class="detail-main">
+      <div class="detail-player">
+        {% if video.preview_url %}
+        <video class="detail-preview" controls muted loop playsinline preload="none" poster="{{ video.thumbnail_url }}">
+          <source src="{{ video.preview_url }}" type="video/mp4">
+        </video>
+        {% elif video.thumbnail_url %}
+        <img class="detail-poster" src="{{ video.thumbnail_url }}" alt="{{ video.title }}" fetchpriority="high">
+        {% else %}
+        <div class="detail-preview-message">Preview unavailable for this thumbnail</div>
+        {% endif %}
+        <div class="player-caption"><span class="live-dot"></span> Preview clip <span class="caption-muted">· Full playback link will be connected separately</span></div>
+      </div>
+      <div class="detail-title-row">
+        <div><p class="eyebrow">VIDEO DETAILS</p><h1>{{ video.title }}</h1></div>
+        <a class="button button-quiet" href="{{ video.image_gallery_href }}">View image frames <span aria-hidden="true">↗</span></a>
+      </div>
+      <div class="detail-stats">
+        <div class="detail-stat"><span class="stat-icon" aria-hidden="true">▶</span><div><b>{{ video.views_label }}</b><small>Views</small></div></div>
+        {% if video.rating_label %}<div class="detail-stat"><span class="stat-icon" aria-hidden="true">♥</span><div><b>{{ video.rating_label }}</b><small>Rating</small></div></div>{% endif %}
+        {% if video.duration_label %}<div class="detail-stat"><span class="stat-icon" aria-hidden="true">◷</span><div><b>{{ video.duration_label }}</b><small>Duration</small></div></div>{% endif %}
+      </div>
+      {% if video.channel_name %}
+      <div class="channel-feature">
+        <div class="channel-avatar">{% if video.thumbnail_url %}<img src="{{ video.thumbnail_url }}" alt="" loading="lazy">{% else %}<span>{{ video.channel_name[:1] }}</span>{% endif %}</div>
+        <div class="channel-feature-copy"><small>CHANNEL</small><a href="{{ video.channel_href }}">{{ video.channel_name }}</a><span>Explore more from this channel</span></div>
+        <a class="channel-arrow" href="{{ video.channel_href }}" aria-label="View channel">↗</a>
+      </div>
+      {% endif %}
+      {% if video.tags %}
+      <section class="detail-tags"><h2>Categories & tags</h2><div class="tag-cloud">
+        {% for tag in video.tags %}
+        <a href="/category/{{ tag|slugify }}--{{ tag|tokenize }}">{{ tag }}</a>
+        {% endfor %}
+      </div></section>
+      {% endif %}
+    </div>
+    <aside class="detail-sidebar">
+      <div class="sidebar-card">
+        <p class="eyebrow">KEEP EXPLORING</p><h2>Find a new favorite.</h2><p>Browse categories and discover more from channels you like.</p>
+        <a class="button button-primary button-wide" href="/browse?section=discovery">Explore videos <span aria-hidden="true">↗</span></a>
+      </div>
+      {% if related %}
+      <div class="sidebar-related"><h2>Related picks</h2>
+      {% for video in related[:4] %}
+        <div class="mini-video">
+          <a class="mini-video-media" href="{{ video.video_href }}"><img src="{{ video.thumbnail_url }}" alt="" loading="lazy"><span>{{ video.duration_label }}</span></a>
+          <div><a class="mini-video-title" href="{{ video.video_href }}">{{ video.title }}</a><small>{{ video.views_label }} views</small></div>
+        </div>
+      {% endfor %}
+      </div>
+      {% endif %}
+    </aside>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,23 @@
+<article class="video-card">
+  <a class="video-card__media" href="{{ video.video_href }}" {% if video.preview_url %}data-preview="{{ video.preview_url }}"{% endif %} aria-label="{{ video.title }}">
+    <span class="video-card__placeholder" aria-hidden="true"></span>
+    {% if video.thumbnail_url %}
+    <img class="video-card__poster" src="{{ video.thumbnail_url }}" alt="{{ video.title }}" loading="lazy" decoding="async">
+    {% endif %}
+    {% if video.preview_url %}<video class="video-card__preview" muted loop playsinline preload="none" aria-hidden="true"></video>{% endif %}
+    <span class="video-card__play" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m9 5 10 7-10 7z"></path></svg></span>
+    {% if video.duration_label %}<span class="video-duration">{{ video.duration_label }}</span>{% endif %}
+    {% if video.rating_label %}<span class="video-rating">{{ video.rating_label }} <span aria-hidden="true">♥</span></span>{% endif %}
+  </a>
+  <div class="video-card__body">
+    <a class="video-card__title" href="{{ video.video_href }}">{{ video.title }}</a>
+    <div class="video-card__meta">
+      {% if video.channel_name and video.channel_href %}
+      <a class="video-channel" href="{{ video.channel_href }}">{{ video.channel_name }}</a>
+      {% elif video.channel_name %}
+      <span class="video-channel">{{ video.channel_name }}</span>
+      {% endif %}
+      {% if video.views is not none %}<span>{{ video.views_label }} views</span>{% endif %}
+    </div>
+  </div>
+</article>
