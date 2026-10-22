@@ -1,11 +1,6 @@
 name: Migrate videos from DB1 to DB3
 
 on:
-  # A guarded, one-time smoke-run trigger. Ordinary pushes do not execute the migration.
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/migrate-db1-to-db3.yml"
   workflow_dispatch:
     inputs:
       batch_size:
@@ -34,7 +29,6 @@ concurrency:
 
 jobs:
   migrate:
-    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && startsWith(github.event.head_commit.message, '[run-db1-db3-smoke]')) }}
     name: Copy DB1 videos to DB3
     runs-on: ubuntu-latest
     timeout-minutes: 120
