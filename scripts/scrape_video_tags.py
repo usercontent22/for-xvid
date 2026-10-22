@@ -10,7 +10,7 @@ import sys
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from urllib.parse import urljoin, urlparse, urlunparse
+from urllib.parse import urljoin, urlparse
 
 import psycopg
 import requests
@@ -29,11 +29,18 @@ HEADERS = {
 }
 _thread_local = threading.local()
 
+ADD_STATUS_COLUMN_SQL = (
+    "ALTER TABLE public.videos "
+    "ADD COLUMN IF NOT EXISTS tags_scraped_at TIMESTAMPTZ"
+)
+PENDING_INDEX_SQL = (
+    "CREATE INDEX IF NOT EXISTS videos_tags_pending_idx "
+    "ON public.videos (url) WHERE tags_scraped_at IS NULL"
+)
 SELECT_PENDING_SQL = """
 SELECT url, tags
 FROM public.videos
 WHERE tags_scraped_at IS NULL
-  AND cardinality(tags) = 0
   AND url > %s
   AND mod(abs(hashtext(url)::bigint), %s) = %s
 ORDER BY url
@@ -41,11 +48,13 @@ LIMIT %s
 """
 UPDATE_TAGS_SQL = """
 UPDATE public.videos
-SET tags = %s::text[],
+SET tags = CASE
+        WHEN cardinality(tags) = 0 THEN %s::text[]
+        ELSE tags
+    END,
     tags_scraped_at = now()
 WHERE url = %s
   AND tags_scraped_at IS NULL
-  AND cardinality(tags) = 0
 """
 
 
@@ -64,22 +73,6 @@ def normalize_video_url(value):
     return urljoin(BASE + "/", value)
 
 
-def build_request_url(value):
-    """Convert /VIDEO_ID/slug to /video.VIDEO_ID/slug for the HTML request only."""
-    normalized = normalize_video_url(value)
-    parsed = urlparse(normalized)
-    base_host = (urlparse(BASE).hostname or "").lower().removeprefix("www.")
-    target_host = (parsed.hostname or "").lower().removeprefix("www.")
-    if target_host != base_host:
-        return normalized
-
-    segments = parsed.path.split("/")
-    if len(segments) > 1 and segments[1] and not segments[1].lower().startswith("video."):
-        segments[1] = "video." + segments[1]
-        parsed = parsed._replace(path="/".join(segments))
-    return urlunparse(parsed)
-
-
 def extract_tags(html):
     """Collect comma-separated values from the same two meta selectors as the test script."""
     soup = BeautifulSoup(html, "html.parser")
@@ -91,12 +84,8 @@ def extract_tags(html):
     return sorted(tags, key=str.casefold)
 
 
-class PermanentHTTPError(Exception):
-    pass
-
-
 def request_tags(video_url, retries=4, timeout=30, delay=1.0):
-    target = build_request_url(video_url)
+    target = normalize_video_url(video_url)
     last_error = None
     for attempt in range(retries + 1):
         try:
@@ -111,12 +100,8 @@ def request_tags(video_url, retries=4, timeout=30, delay=1.0):
                     backoff = min(2 ** attempt * 2, 30)
                 time.sleep(backoff + random.random())
                 continue
-            if response.status_code in (403, 404, 410):
-                raise PermanentHTTPError(f"HTTP {response.status_code} for {target}")
             response.raise_for_status()
             return extract_tags(response.text)
-        except PermanentHTTPError:
-            raise
         except (requests.RequestException, ValueError) as exc:
             last_error = exc
             if attempt < retries:
@@ -140,20 +125,32 @@ def connect_db(connection_url, application_name):
 
 
 def init_schema(connection_urls):
-    """Validate existing schema; never create or modify tables/indices."""
-    required = {"url", "tags", "tags_scraped_at"}
     for index, connection_url in enumerate(connection_urls, start=1):
-        with connect_db(connection_url, f"video-tag-check-{index}") as conn:
+        conn = None
+        try:
+            print(f"[schema] connecting to DATABASE_URL_{index}", flush=True)
+            conn = connect_db(connection_url, f"video-tag-schema-{index}")
             with conn.cursor() as cur:
-                cur.execute("""
-                    SELECT column_name FROM information_schema.columns
-                    WHERE table_schema = 'public' AND table_name = 'videos'
-                """)
-                actual = {row[0] for row in cur.fetchall()}
-                missing = required - actual
-                if missing:
-                    raise RuntimeError(f"DATABASE_URL_{index} missing columns: {sorted(missing)}")
-            print(f"[schema] DATABASE_URL_{index}: existing columns verified", flush=True)
+                cur.execute(
+                    "SELECT 1 FROM information_schema.tables "
+                    "WHERE table_schema='public' AND table_name='videos'"
+                )
+                if cur.fetchone() is None:
+                    raise RuntimeError(
+                        f"DATABASE_URL_{index} has no public.videos table. "
+                        "Run the video metadata workflow first."
+                    )
+                cur.execute(ADD_STATUS_COLUMN_SQL)
+                cur.execute(PENDING_INDEX_SQL)
+            conn.commit()
+            print(f"[schema] DATABASE_URL_{index}: tags_scraped_at ready", flush=True)
+        except Exception:
+            if conn is not None:
+                conn.rollback()
+            raise
+        finally:
+            if conn is not None:
+                conn.close()
 
 
 def process_database(
@@ -172,6 +169,7 @@ def process_database(
     processed = 0
     fetched = 0
     tags_found = 0
+    already_tagged = 0
     failures = 0
     cursor_url = ""
     started = time.monotonic()
@@ -201,9 +199,13 @@ def process_database(
                 cursor_url = rows[-1][0]
                 updates = []
                 futures = {}
-                batch_failures = 0
-                for video_url, _existing_tags in rows:
-                    futures[pool.submit(request_tags, video_url, retries, timeout, delay)] = video_url
+                for video_url, existing_tags in rows:
+                    if existing_tags:
+                        # Preserve tags written elsewhere, but don't re-fetch this URL forever.
+                        updates.append(([], video_url))
+                        already_tagged += 1
+                    else:
+                        futures[pool.submit(request_tags, video_url, retries, timeout, delay)] = video_url
 
                 for future in as_completed(futures):
                     video_url = futures[future]
@@ -214,7 +216,6 @@ def process_database(
                         fetched += 1
                     except Exception as exc:
                         failures += 1
-                        batch_failures += 1
                         print(f"[error] {database_label} url={video_url}: {exc}", file=sys.stderr, flush=True)
 
                 try:
@@ -227,16 +228,11 @@ def process_database(
                     raise
 
                 processed += len(rows)
-                if len(rows) >= 50 and batch_failures / len(rows) >= 0.50:
-                    raise RuntimeError(
-                        f"{database_label} shard={shard_index}: stopping because "
-                        f"{batch_failures}/{len(rows)} HTTP requests failed in the last batch"
-                    )
                 elapsed = max(time.monotonic() - started, 0.001)
                 print(
                     f"[progress] {database_label} shard={shard_index}: "
                     f"scanned={processed:,}; fetched={fetched:,}; "
-                    f"tags_found={tags_found:,}; "
+                    f"tags_found={tags_found:,}; already_tagged={already_tagged:,}; "
                     f"request_failures={failures:,}; rate={processed / elapsed:.1f} rows/s",
                     flush=True,
                 )
@@ -244,7 +240,7 @@ def process_database(
         print(
             f"[done] {database_label} shard={shard_index}: scanned={processed:,}; "
             f"pages_fetched={fetched:,}; tags_found={tags_found:,}; "
-            f"request_failures={failures:,}; "
+            f"already_tagged={already_tagged:,}; request_failures={failures:,}; "
             f"elapsed={elapsed:.1f}s",
             flush=True,
         )
@@ -256,7 +252,7 @@ def process_database(
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--shard-index", type=int, default=0)
-    parser.add_argument("--shard-count", type=int, default=24)
+    parser.add_argument("--shard-count", type=int, default=20)
     parser.add_argument("--workers", type=int, default=4)
     parser.add_argument("--delay", type=float, default=1.0)
     parser.add_argument("--timeout", type=int, default=30)
