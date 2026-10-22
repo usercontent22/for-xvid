@@ -48,7 +48,7 @@ grouped AS (
 )
 SELECT norm, example_tag, uses
 FROM grouped
-WHERE norm = ANY(%s) OR norm <> ALL(%s)
+WHERE norm <> ''
 ORDER BY uses DESC
 LIMIT 40
 """
