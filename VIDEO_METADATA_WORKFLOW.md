@@ -146,5 +146,6 @@ not delete or update source rows.
 - At most the first 10 tags in each source row's array are copied, preserving
   their original order. The other metadata columns are mapped directly to the
   matching destination columns.
-- This is an insert-only first pass. DB1 rows win if the same URL is present
-  already in DB3; DB2 is intentionally not part of this first migration.
+- This is an insert-only first pass. If a URL already exists in DB3, the
+  existing destination row is retained; DB1 values are inserted only for URLs
+  absent from DB3. DB2 is intentionally not part of this first migration.
