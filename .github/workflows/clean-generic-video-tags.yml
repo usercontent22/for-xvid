@@ -1,0 +1,57 @@
+name: Clean generic video tags
+
+on:
+  workflow_dispatch:
+    inputs:
+      apply_cleanup:
+        description: "When false, only counts affected rows. When true, rewrites matching tags."
+        required: true
+        default: false
+        type: boolean
+      confirmation:
+        description: "Required only for apply: REMOVE GENERIC TAGS FROM ALL VIDEO ROWS"
+        required: false
+        default: ""
+        type: string
+      batch_size:
+        description: "Rows per small database commit"
+        required: true
+        default: "1000"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      DATABASE_URL_1: ${{ secrets.DATABASE_URL_1 }}
+      DATABASE_URL_2: ${{ secrets.DATABASE_URL_2 }}
+      APPLY_CLEANUP: ${{ inputs.apply_cleanup }}
+      CONFIRMATION: ${{ inputs.confirmation }}
+      BATCH_SIZE: ${{ inputs.batch_size }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Validate cleanup script
+        run: python -m py_compile scripts/catalog_utils.py scripts/clean_generic_tags.py
+      - name: Count affected rows (dry run)
+        if: ${{ env.APPLY_CLEANUP != 'true' }}
+        run: python scripts/clean_generic_tags.py --batch-size "$BATCH_SIZE"
+      - name: Remove only normalized generic site tags
+        if: ${{ env.APPLY_CLEANUP == 'true' }}
+        run: |
+          python scripts/clean_generic_tags.py \
+            --apply \
+            --confirm "$CONFIRMATION" \
+            --batch-size "$BATCH_SIZE"
