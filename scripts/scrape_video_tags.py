@@ -181,7 +181,6 @@ def process_database(
     batch_size,
     max_rows,
 ):
-    conn = connect_db(connection_url, f"video-tags-{database_label}-shard-{shard_index}")
     processed = 0
     fetched = 0
     tags_found = 0
@@ -189,81 +188,128 @@ def process_database(
     failures = 0
     cursor_url = ""
     started = time.monotonic()
-    try:
-        print(
-            f"[{database_label} shard {shard_index}/{shard_count}] starting "
-            f"(workers={workers}, batch_size={batch_size}, max_rows={max_rows or 'all'})",
-            flush=True,
-        )
-        with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="tag-http") as pool:
-            while True:
-                limit = batch_size
-                if max_rows:
-                    remaining = max_rows - processed
-                    if remaining <= 0:
-                        break
-                    limit = min(limit, remaining)
-                with conn.cursor() as cur:
-                    cur.execute(
-                        SELECT_PENDING_SQL,
-                        (cursor_url, shard_count, shard_index, limit),
-                    )
-                    rows = cur.fetchall()
-                if not rows:
+    app_base = f"video-tags-{database_label}-shard-{shard_index}"
+
+    print(
+        f"[{database_label} shard {shard_index}/{shard_count}] starting "
+        f"(workers={workers}, batch_size={batch_size}, max_rows={max_rows or 'all'})",
+        flush=True,
+    )
+
+    with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="tag-http") as pool:
+        while True:
+            limit = batch_size
+            if max_rows:
+                remaining = max_rows - processed
+                if remaining <= 0:
                     break
+                limit = min(batch_size, remaining)
 
-                cursor_url = rows[-1][0]
-                updates = []
-                futures = {}
-                for video_url, existing_tags in rows:
-                    if existing_tags:
-                        # Preserve tags written elsewhere, but don't re-fetch this URL forever.
-                        updates.append(([], video_url))
-                        already_tagged += 1
-                    else:
-                        futures[pool.submit(request_tags, video_url, retries, timeout, delay)] = video_url
-
-                for future in as_completed(futures):
-                    video_url = futures[future]
-                    try:
-                        tags = future.result()
-                        updates.append((tags, video_url))
-                        tags_found += len(tags)
-                        fetched += 1
-                    except Exception as exc:
-                        failures += 1
-                        print(f"[error] {database_label} url={video_url}: {exc}", file=sys.stderr, flush=True)
-
+            # Keep database connections out of the potentially slow HTTP phase.
+            # A connection left idle while hundreds of pages are requested can be
+            # closed by Neon/network timeouts before the batch writes are committed.
+            rows = None
+            for db_attempt in range(4):
                 try:
-                    if updates:
-                        with conn.cursor() as cur:
-                            cur.executemany(UPDATE_TAGS_SQL, updates)
-                        conn.commit()
-                except Exception:
-                    conn.rollback()
-                    raise
+                    with connect_db(connection_url, f"{app_base}-read") as read_conn:
+                        with read_conn.cursor() as cur:
+                            cur.execute(
+                                SELECT_PENDING_SQL,
+                                (cursor_url, shard_count, shard_index, limit),
+                            )
+                            rows = cur.fetchall()
+                    break
+                except Exception as exc:
+                    if db_attempt == 3:
+                        raise RuntimeError(
+                            f"{database_label}: unable to read pending batch after retries"
+                        ) from exc
+                    wait = min(2 ** db_attempt, 10)
+                    print(
+                        f"[db-retry] {database_label} read attempt {db_attempt + 1}/4 "
+                        f"failed ({exc}); retrying in {wait}s",
+                        file=sys.stderr,
+                        flush=True,
+                    )
+                    time.sleep(wait)
 
-                processed += len(rows)
-                elapsed = max(time.monotonic() - started, 0.001)
-                print(
-                    f"[progress] {database_label} shard={shard_index}: "
-                    f"scanned={processed:,}; fetched={fetched:,}; "
-                    f"tags_found={tags_found:,}; already_tagged={already_tagged:,}; "
-                    f"request_failures={failures:,}; rate={processed / elapsed:.1f} rows/s",
-                    flush=True,
-                )
-        elapsed = max(time.monotonic() - started, 0.001)
-        print(
-            f"[done] {database_label} shard={shard_index}: scanned={processed:,}; "
-            f"pages_fetched={fetched:,}; tags_found={tags_found:,}; "
-            f"already_tagged={already_tagged:,}; request_failures={failures:,}; "
-            f"elapsed={elapsed:.1f}s",
-            flush=True,
-        )
-        return failures
-    finally:
-        conn.close()
+            if not rows:
+                break
 
+            cursor_url = rows[-1][0]
+            updates = []
+            futures = {}
+            for video_url, existing_tags in rows:
+                if existing_tags:
+                    # Preserve existing tags but mark the page processed.
+                    updates.append(([], video_url))
+                    already_tagged += 1
+                else:
+                    futures[
+                        pool.submit(request_tags, video_url, retries, timeout, delay)
+                    ] = video_url
+
+            for future in as_completed(futures):
+                video_url = futures[future]
+                try:
+                    tags = future.result()
+                    updates.append((tags, video_url))
+                    tags_found += len(tags)
+                    fetched += 1
+                except Exception as exc:
+                    # Leave failed rows pending so a future workflow run retries them.
+                    failures += 1
+                    print(
+                        f"[error] {database_label} url={video_url}: {exc}",
+                        file=sys.stderr,
+                        flush=True,
+                    )
+
+            if updates:
+                last_db_error = None
+                for db_attempt in range(4):
+                    try:
+                        with connect_db(connection_url, f"{app_base}-write") as write_conn:
+                            with write_conn.cursor() as cur:
+                                cur.executemany(UPDATE_TAGS_SQL, updates)
+                        last_db_error = None
+                        break
+                    except Exception as exc:
+                        last_db_error = exc
+                        if db_attempt == 3:
+                            break
+                        wait = min(2 ** db_attempt, 10)
+                        print(
+                            f"[db-retry] {database_label} write attempt "
+                            f"{db_attempt + 1}/4 failed ({exc}); retrying in {wait}s",
+                            file=sys.stderr,
+                            flush=True,
+                        )
+                        time.sleep(wait)
+                if last_db_error is not None:
+                    raise RuntimeError(
+                        f"{database_label}: unable to save batch after retries"
+                    ) from last_db_error
+
+            processed += len(rows)
+            elapsed = max(time.monotonic() - started, 0.001)
+            print(
+                f"[progress] {database_label} shard={shard_index}: "
+                f"scanned={processed:,}; fetched={fetched:,}; "
+                f"tags_found={tags_found:,}; already_tagged={already_tagged:,}; "
+                f"request_failures={failures:,}; rate={processed / elapsed:.1f} rows/s",
+                flush=True,
+            )
+
+    elapsed = max(time.monotonic() - started, 0.001)
+    print(
+        f"[done] {database_label} shard={shard_index}: scanned={processed:,}; "
+        f"pages_fetched={fetched:,}; tags_found={tags_found:,}; "
+        f"already_tagged={already_tagged:,}; request_failures={failures:,}; "
+        f"elapsed={elapsed:.1f}s",
+        flush=True,
+    )
+    return failures
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
