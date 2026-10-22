@@ -112,3 +112,39 @@ Both indexes are rebuilt after tag cleanup and are present in production. Their 
 - `scripts/build_homepage_snapshots.py` — precomputes three-day homepage and tag catalog payloads.
 - `sql/stage2_source_indexes.sql` and `sql/homepage_snapshots.sql` — versioned schema SQL.
 - `.github/workflows/stage2-audit.yml`, `.github/workflows/clean-generic-video-tags.yml`, and `.github/workflows/build-homepage-snapshots.yml` — manual/scheduled actions.
+
+
+## Stage 3: initial batch migration into DATABASE_URL_3
+
+The manual **Migrate videos from DB1 to DB3** workflow copies only
+`public.videos` from `DATABASE_URL_1` into the already-created
+`public.videos` table in `DATABASE_URL_3`. It does not read DB2 yet and does
+not delete or update source rows.
+
+### Configure and run
+
+1. In **Settings → Secrets and variables → Actions**, add
+   `DATABASE_URL_3` with the destination database connection string. Keep
+   `DATABASE_URL_1` configured as the source secret. Never commit either URL.
+2. Open **Actions → Migrate videos from DB1 to DB3 → Run workflow**.
+3. The default run copies one 10,000-row batch as a smoke test. Inspect the
+   destination row count and a few sample rows before continuing.
+4. Run the workflow again with `max_batches=0` to copy all remaining rows.
+   The saved checkpoint means it continues after the last committed URL; it
+   does not start over. Select a batch size of 5,000–50,000 as needed.
+
+### Speed and restart safety
+
+- Source rows are read in primary-key order using `url > last_url`, not
+  increasingly expensive OFFSET scans.
+- Each batch uses PostgreSQL `COPY` into a temporary staging table, followed by
+  one `INSERT ... ON CONFLICT (url) DO NOTHING` and one checkpoint update.
+  Data and checkpoint commit in the same transaction.
+- The destination helper table `public.video_migration_state` stores progress.
+  The migration is idempotent: a retry resumes from the last committed URL,
+  and existing destination URLs are not overwritten.
+- At most the first 10 tags in each source row's array are copied, preserving
+  their original order. The other metadata columns are mapped directly to the
+  matching destination columns.
+- This is an insert-only first pass. DB1 rows win if the same URL is present
+  already in DB3; DB2 is intentionally not part of this first migration.
