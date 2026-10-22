@@ -54,3 +54,55 @@ For resumability, the tag workflow adds `tags_scraped_at` to `public.videos` and
 
 The workflow does not upload artifacts or generate report files; progress and failures are available directly in the GitHub Actions logs.
 
+
+
+## Stage 2: catalog, search, and homepage optimization
+
+### Read-only catalog audit
+
+Run **Actions → Stage 2 catalog audit** to inspect both source databases. It reports row counts, tag coverage, empty key fields, table/index sizes, common tags and (unless skipped) URL overlap plus hash-partition consistency. The workflow is read-only.
+
+A live audit on 2026-10-22 found:
+
+- `for-categories`: 648,710 video rows; 648,597 rows with at least one tag; 113 rows still pending tag scraping.
+- `gitrepo-updates`: 649,948 video rows; 649,868 rows with at least one tag; 80 rows still pending tag scraping.
+- Combined: 1,298,658 rows; 1,298,465 rows with tags; 31,547,215 stored tag entries.
+- The two source tables each had the URL primary-key index and tag-scrape pending index. Search/channel/ranking indexes were not previously present.
+
+Use the report from the current run before making capacity or index decisions; row counts and storage sizes change as scraping continues.
+
+### Generic site tag filtering
+
+`scripts/catalog_utils.py` normalizes tags for comparison and removes only generic site boilerplate: `video`, `videos`, `x video`, `x videos`, `xvideos`, and `xvideos.com`, including case and punctuation variants. It is used by both metadata ingestion and HTML tag extraction.
+
+For existing rows, open **Actions → Clean generic video tags**. The default is a dry run that reports affected rows and changes no data. Applying cleanup requires selecting the apply option and entering this exact phrase:
+
+`REMOVE GENERIC TAGS FROM ALL VIDEO ROWS`
+
+The apply path updates matching rows in small commits and leaves other tags intact. Run the dry run first and review its counts before enabling apply.
+
+### Precomputed homepage snapshots
+
+`scripts/build_homepage_snapshots.py` creates compact JSONB snapshots in `public.homepage_snapshots` on **DATABASE_URL_1**. The primary key is `(feed_date, section)`. The builder pulls top candidates from both source databases, deduplicates URLs, excludes generic tags from cards, and constructs three daily sections (`featured`, `popular`, `discovery`) with channel/tag diversity limits. It also stores a ranked canonical tag catalog.
+
+**Actions → Build homepage snapshots** runs after a successful tag-scrape workflow, on a daily schedule, or manually. The default precomputes a three-day window. A website homepage should request these small precomputed payloads from database 1 or serve a generated JSON response through Cloudflare caching; it should not rerank all source videos on each page view.
+
+The builder currently selects candidates from the existing `views` and `rating_percentage` fields. Since the source schema does not currently retain a trustworthy publication timestamp or historical views, this first version ranks popularity/quality rather than claiming true recent-upload or trending order.
+
+### Index migrations prepared for testing
+
+`sql/stage2_source_indexes.sql` defines the candidate-ranking indexes for the two source databases. `sql/homepage_snapshots.sql` defines the snapshot table. The index changes were tested on isolated Neon branches; they have not been applied to production yet.
+
+- `videos_views_rank_idx`: partial B-tree index supporting top-by-views candidate selection.
+- `videos_rating_rank_idx`: partial multicolumn B-tree index supporting rating-then-views candidate selection.
+
+Full-text, trigram, GIN tag, and channel indexes should be added only after the catalog serving schema and actual website query shapes are decided. That avoids paying index storage/maintenance costs before confirming which searches the first website release needs.
+
+### Files for this stage
+
+- `scripts/audit_video_catalog.py` — read-only counts, sizes, tags and partition/duplicate audit.
+- `scripts/catalog_utils.py` — shared generic-tag filtering.
+- `scripts/clean_generic_tags.py` — guarded dry-run/apply cleanup for existing records.
+- `scripts/build_homepage_snapshots.py` — precomputes three-day homepage and tag catalog payloads.
+- `sql/stage2_source_indexes.sql` and `sql/homepage_snapshots.sql` — versioned schema SQL.
+- `.github/workflows/stage2-audit.yml`, `.github/workflows/clean-generic-video-tags.yml`, and `.github/workflows/build-homepage-snapshots.yml` — manual/scheduled actions.
