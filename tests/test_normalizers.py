@@ -9,7 +9,7 @@ from pathlib import Path
 from scripts.collect_channel_videos import (
     clean_img, clean_url, duration_seconds, integer_views,
     normalize, rating_percentage, channel_slug, bucket_for,
-    load_channels, reported_video_count,
+    load_channels, reported_video_count, clean_tags,
 )
 
 
@@ -73,6 +73,15 @@ class MetadataNormalizationTests(unittest.TestCase):
         self.assertEqual(row["duration_seconds"], 300)
         self.assertEqual(row["channel_name"], "Channel display name")
         self.assertEqual(row["tags"], [])
+
+    def test_generic_site_tags_are_filtered(self):
+        self.assertEqual(
+            clean_tags([
+                "video", "Videos", "x video", "x-videos", "XVIDEOS.COM",
+                "amateur", "homemade", "amateur",
+            ]),
+            ["amateur", "homemade"],
+        )
 
     def test_partition_is_stable(self):
         self.assertEqual(bucket_for("/abc123/video_slug"), bucket_for("/abc123/video_slug"))
