@@ -43,6 +43,18 @@ xxxworld-logo.svg, xxxworld-logo.webp, xxxworld-icon.svg, xxxworld-icon-32.webp,
 
 The proposed catalog schema is in sql/read_catalog_schema.sql. It is intentionally not created by this website: first budget for it, create it separately, backfill in batches, establish incremental sync, and verify indexes and sizes. Keep the source tables as the metadata system of record.
 
+
+## Initial database migration
+
+The manual **Migrate videos from DB1 to DB3** GitHub Actions workflow copies
+`public.videos` from `DATABASE_URL_1` into the existing table in
+`DATABASE_URL_3` in resumable keyset batches. It uses PostgreSQL `COPY` into
+a temporary staging table, saves a transaction-safe checkpoint, skips existing
+URLs, and copies at most 10 tags per row. The workflow defaults to one 10,000-row
+smoke-test batch; review DB3 and then rerun with `max_batches=0` to finish.
+Add `DATABASE_URL_3` as a repository Actions secret before running it. Details
+are in [VIDEO_METADATA_WORKFLOW.md](VIDEO_METADATA_WORKFLOW.md#stage-3-initial-batch-migration-into-database_url_3).
+
 ## Routes
 
 - / — snapshot-backed homepage.

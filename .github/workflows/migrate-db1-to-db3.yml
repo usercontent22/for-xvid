@@ -1,0 +1,57 @@
+name: Migrate videos from DB1 to DB3
+
+on:
+  workflow_dispatch:
+    inputs:
+      batch_size:
+        description: "Rows per transaction (COPY into staging, then merge)"
+        required: true
+        default: "10000"
+        type: choice
+        options:
+          - "5000"
+          - "10000"
+          - "20000"
+          - "50000"
+      max_batches:
+        description: "Safe first run: 1 batch. Use 0 to process all remaining rows."
+        required: true
+        default: "1"
+        type: string
+
+permissions:
+  contents: read
+
+# Do not let two invocations race over the same saved checkpoint.
+concurrency:
+  group: db1-to-db3-video-migration
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    name: Copy DB1 videos to DB3
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      DATABASE_URL_1: ${{ secrets.DATABASE_URL_1 }}
+      DATABASE_URL_3: ${{ secrets.DATABASE_URL_3 }}
+      MIGRATION_BATCH_SIZE: ${{ inputs.batch_size || '10000' }}
+      MIGRATION_MAX_BATCHES: ${{ inputs.max_batches || '1' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Run unit tests
+        run: python -m unittest discover -s tests -v
+      - name: Migrate a resumable batch
+        run: |
+          python scripts/migrate_db1_to_db3.py \
+            --batch-size "$MIGRATION_BATCH_SIZE" \
+            --max-batches "$MIGRATION_MAX_BATCHES"
