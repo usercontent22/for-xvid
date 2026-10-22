@@ -18,6 +18,15 @@ class VideoTagExtractionTests(unittest.TestCase):
             ["blue", "green", "red", "yellow"],
         )
 
+    def test_generic_site_boilerplate_is_removed(self):
+        html = """
+        <html><head>
+          <meta property="video:tag" content="video, X video, amateur">
+          <meta name="keywords" content="videos, x-videos, XVIDEOS.COM, homemade">
+        </head></html>
+        """
+        self.assertEqual(extract_tags(html), ["amateur", "homemade"])
+
     def test_empty_meta_tags_return_empty_list(self):
         self.assertEqual(extract_tags("<html><head></head><body>text</body></html>"), [])
 
