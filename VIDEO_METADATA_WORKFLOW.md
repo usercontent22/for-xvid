@@ -85,18 +85,24 @@ The apply path updates matching rows in small commits and leaves other tags inta
 
 `scripts/build_homepage_snapshots.py` creates compact JSONB snapshots in `public.homepage_snapshots` on **DATABASE_URL_1**. The primary key is `(feed_date, section)`. The builder pulls top candidates from both source databases, deduplicates URLs, excludes generic tags from cards, and constructs three daily sections (`featured`, `popular`, `discovery`) with channel/tag diversity limits. It also stores a ranked canonical tag catalog.
 
-**Actions → Build homepage snapshots** runs after a successful tag-scrape workflow, on a daily schedule, or manually. The default precomputes a three-day window. A website homepage should request these small precomputed payloads from database 1 or serve a generated JSON response through Cloudflare caching; it should not rerank all source videos on each page view.
+**Actions → Build homepage snapshots** runs after a successful tag-scrape workflow, after a successful generic-tag cleanup, on a daily schedule, or manually. The first production run succeeded and created 13 snapshot records for October 22–24, 2026: 48 cards per featured/popular/discovery section per day, 60 common tags per day, and a 60-tag canonical catalog for October 22. A website homepage should request these small precomputed payloads from database 1 or serve a generated JSON response through Cloudflare caching; it should not rerank all source videos on each page view.
 
 The builder currently selects candidates from the existing `views` and `rating_percentage` fields. Since the source schema does not currently retain a trustworthy publication timestamp or historical views, this first version ranks popularity/quality rather than claiming true recent-upload or trending order.
 
-### Index migrations prepared for testing
+### Generic tag cleanup completed
 
-`sql/stage2_source_indexes.sql` defines the candidate-ranking indexes for the two source databases. `sql/homepage_snapshots.sql` defines the snapshot table. The index changes were tested on isolated Neon branches; they have not been applied to production yet.
+The production cleanup finished successfully on both configured source database connections. The normalized audit query now returns zero rows containing any of the generic keys `video`, `videos`, `xvideo`, `xvideos`, or `xvideoscom`. The workflow cleaned 649,868 rows in Database URL 1 and 648,597 rows in Database URL 2 (1,298,465 rows total); other tags were preserved.
+
+The first attempt hit the Neon 1 GiB logical-size limit after 530,000 rows in Database URL 1. The two ranking indexes were temporarily dropped to free space; the idempotent cleanup resumed in 5,000-row commits and completed, then the ranking indexes were rebuilt. The cleanup workflow is now manual-only again; its default remains a dry run, and applying future cleanups still requires the explicit confirmation phrase.
+
+### Ranking indexes applied
+
+`sql/stage2_source_indexes.sql` defines the ranking indexes applied to both source databases. `sql/homepage_snapshots.sql` defines the snapshot table.
 
 - `videos_views_rank_idx`: partial B-tree index supporting top-by-views candidate selection.
 - `videos_rating_rank_idx`: partial multicolumn B-tree index supporting rating-then-views candidate selection.
 
-Full-text, trigram, GIN tag, and channel indexes should be added only after the catalog serving schema and actual website query shapes are decided. That avoids paying index storage/maintenance costs before confirming which searches the first website release needs.
+Both indexes are rebuilt after tag cleanup and are present in production. Their observed sizes are approximately 71 MB for the views index and 76 MB for the rating index in each database. The current database sizes are approximately 808 MB (`for-categories`) and 907 MB (`gitrepo-updates`) against the 1 GiB logical-size limit. Because `gitrepo-updates` is close to that limit, do not add large GIN/trigram/channel indexes to the source databases; those should be part of the separately budgeted read catalog after it is approved and provisioned.
 
 ### Files for this stage
 
