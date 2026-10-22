@@ -16,7 +16,7 @@ on:
       batch_size:
         description: "Rows per small database commit"
         required: true
-        default: "1000"
+        default: "5000"
         type: string
 
 permissions:
