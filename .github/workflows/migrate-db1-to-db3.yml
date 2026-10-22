@@ -1,6 +1,11 @@
 name: Migrate videos from DB1 to DB3
 
 on:
+  # One guarded full-run trigger; removed again after GitHub accepts this run.
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/migrate-db1-to-db3.yml"
   workflow_dispatch:
     inputs:
       batch_size:
@@ -29,6 +34,7 @@ concurrency:
 
 jobs:
   migrate:
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && startsWith(github.event.head_commit.message, '[run-db1-db3-full]')) }}
     name: Copy DB1 videos to DB3
     runs-on: ubuntu-latest
     timeout-minutes: 120
@@ -36,7 +42,7 @@ jobs:
       DATABASE_URL_1: ${{ secrets.DATABASE_URL_1 }}
       DATABASE_URL_3: ${{ secrets.DATABASE_URL_3 }}
       MIGRATION_BATCH_SIZE: ${{ inputs.batch_size || '10000' }}
-      MIGRATION_MAX_BATCHES: ${{ inputs.max_batches || '1' }}
+      MIGRATION_MAX_BATCHES: ${{ github.event_name == 'push' && startsWith(github.event.head_commit.message, '[run-db1-db3-full]') && '0' || inputs.max_batches || '1' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -50,8 +56,28 @@ jobs:
         run: python -m pip install -r requirements.txt
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
-      - name: Migrate a resumable batch
+      - name: Migrate with checkpoint-safe retries
         run: |
-          python scripts/migrate_db1_to_db3.py \
-            --batch-size "$MIGRATION_BATCH_SIZE" \
-            --max-batches "$MIGRATION_MAX_BATCHES"
+          set +e
+          attempt=1
+          while [ "$attempt" -le 3 ]; do
+            echo "Migration attempt $attempt/3; previous committed batches remain checkpointed."
+            if python scripts/migrate_db1_to_db3.py \
+              --batch-size "$MIGRATION_BATCH_SIZE" \
+              --max-batches "$MIGRATION_MAX_BATCHES"; then
+              exit 0
+            else
+              status=$?
+            fi
+
+            if [ "$attempt" -eq 3 ]; then
+              echo "Migration failed after 3 attempts; rerunning later resumes from the saved checkpoint."
+              exit "$status"
+            fi
+
+            delay=$((attempt * 10))
+            echo "Attempt failed with exit code $status; retrying in $delay seconds."
+            sleep "$delay"
+            attempt=$((attempt + 1))
+          done
+          exit 1
