@@ -16,6 +16,11 @@ import psycopg
 import requests
 from bs4 import BeautifulSoup
 
+try:
+    from scripts.catalog_utils import filter_generic_tags
+except ModuleNotFoundError:  # support direct execution: python scripts/scrape_video_tags.py
+    from catalog_utils import filter_generic_tags
+
 BASE = os.getenv("VIDEO_BASE_URL", "https://www.xvideos.com").rstrip("/")
 HEADERS = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
@@ -90,13 +95,13 @@ def build_request_url(value):
 
 
 def extract_tags(html):
-    """Collect comma-separated values from the same two meta selectors as the test script."""
+    """Extract useful meta tags while removing generic site boilerplate."""
     soup = BeautifulSoup(html, "html.parser")
     tags = set()
     for meta in soup.select('meta[property="video:tag"], meta[name="keywords"]'):
         content = (meta.get("content") or "").strip()
         if content:
-            tags.update(tag.strip() for tag in content.split(",") if tag.strip())
+            tags.update(filter_generic_tags(content.split(",")))
     return sorted(tags, key=str.casefold)
 
 
