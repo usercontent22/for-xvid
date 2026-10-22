@@ -1,0 +1,41 @@
+name: Stage 2 catalog audit
+
+on:
+  workflow_dispatch:
+    inputs:
+      skip_partition_audit:
+        description: "Skip the full URL overlap/partition scan and run the quicker metrics audit only"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: Read-only audit of both source databases
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      DATABASE_URL_1: ${{ secrets.DATABASE_URL_1 }}
+      DATABASE_URL_2: ${{ secrets.DATABASE_URL_2 }}
+      SKIP_PARTITION_AUDIT: ${{ inputs.skip_partition_audit }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Run read-only catalog audit
+        run: |
+          if [ "$SKIP_PARTITION_AUDIT" = "true" ]; then
+            python scripts/audit_video_catalog.py --skip-partition-audit
+          else
+            python scripts/audit_video_catalog.py
+          fi
