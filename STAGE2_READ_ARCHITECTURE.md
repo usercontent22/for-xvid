@@ -44,17 +44,22 @@ Proposed rollout:
 4. Store a per-source sync watermark. Incremental jobs copy only rows with `catalog_updated_at` newer than the watermark (using a small overlap window so updates committed during a run are not lost); upserts remain idempotent.
 5. Benchmark actual queries before adding optional `pg_trgm` substring-search indexing. The required GIN/B-tree indexes will need measured size and performance tests.
 
-## Index tests already performed
+## Production Stage 2 changes completed
 
-The proposed views and rating ranking indexes were applied only to temporary Neon branches. Representative top-100 ranking queries used index-only scans on those branches:
-- Views ranking: approximately 6.5 ms execution.
-- Rating then views ranking: approximately 2.3 ms execution.
+The generic-tag cleanup was applied to both configured source databases in bounded 5,000-row batches. A normalized audit query now returns zero video rows containing the generic keys `video`, `videos`, `xvideo`, `xvideos`, or `xvideoscom`. The cleanup changed 649,868 rows from Database URL 1 and 648,597 rows from Database URL 2; no other tags were removed.
 
-These figures are a single test observation, not a production latency guarantee. Temporary test databases showed about 71 MB for the views index and 76 MB for the rating index. Both source databases remained below the reported 1 GiB logical-size limit in the test branches after these indexes, but this does not measure future catalog storage.
+During the first cleanup attempt, Neon rejected further writes after its 1 GiB logical-size limit was exceeded. The views/rating indexes were temporarily dropped, the cleanup resumed idempotently and completed, and the two indexes were rebuilt after the cleanup. The temporary push trigger used for the approved run has been removed; the cleanup workflow is manual-only and defaults to dry-run.
 
-## Production changes requiring explicit confirmation
+The views and rating ranking indexes are now present in both source databases:
+- `videos_views_rank_idx`: about 71 MB per database; partial B-tree for top-by-views selection.
+- `videos_rating_rank_idx`: about 76 MB per database; partial multicolumn B-tree for rating-then-views selection.
 
-- The two source ranking indexes are tested but have not been applied to the production branches.
-- The homepage snapshots table and actual three-day data have not yet been created in production. They will be created when the snapshot workflow runs.
-- The historical generic-tag cleanup has not been run; the action defaults to dry-run.
-- The dedicated read catalog has not been provisioned or populated.
+In temporary branches created after cleanup, EXPLAIN plans for top-100 ranking queries used index-only scans for both ranking indexes on both source projects. Earlier ANALYZE runs (before the historical tag cleanup) measured about 6.5 ms for views ranking and 2.3 ms for rating-then-views ranking; these observations are not production latency guarantees.
+
+Current database sizes are approximately 808 MB for `for-categories` and 907 MB for `gitrepo-updates`, against a 1 GiB logical-size limit. Keep new large indexes off the source databases. The GIN tag, title-search, channel and full catalog indexes belong in the separately budgeted read catalog.
+
+The homepage snapshot table was created on the first configured source database, and the initial snapshot builder workflow completed successfully. It stored 13 rows for October 22–24, 2026: daily `featured`, `popular`, `discovery`, and `tags` sections plus the October 22 canonical tag catalog. Each featured/popular/discovery section has 48 items; each day’s tags section has 60 items; the canonical catalog has 60 items.
+
+## Still not provisioned
+
+The dedicated read catalog has not been created or populated. Its schema and incremental-sync approach are documented in `sql/read_catalog_schema.sql` and this file. Before provisioning it, decide the storage budget and source-to-catalog sync strategy. The source databases should remain authoritative; the website should use the catalog for full search/filter operations and prepared homepage snapshots for homepage traffic.
