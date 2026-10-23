@@ -29,7 +29,6 @@ to_tsvector(
     COALESCE(channel_name, '')
 )
 """
-TAG_VECTOR_SQL = "to_tsvector('simple'::regconfig, array_to_string(tags, ' '))"
 CHANNEL_KEY_SQL = "regexp_replace(lower(COALESCE(channel_name, '')), '[^a-z0-9]', '', 'g')"
 
 
