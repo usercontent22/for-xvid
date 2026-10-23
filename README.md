@@ -67,7 +67,7 @@ separate checkpoint and retries transient failures up to three attempts. See
 
 - / — snapshot-backed homepage.
 - /browse?section=featured|popular|discovery — prebuilt video collections.
-- /search?q=... — indexed search when the serving catalog is configured; otherwise searches only the prepared highlight pool.
+- /search?q=... — indexed title/channel full-text and exact-tag search across DB3/DB4, with bounded keyset pagination.
 - /category/<slug>--<token> — tag/category page.
 - /channel/<slug>--<token> — channel page; supports channel names with spaces.
 - /video/<slug>--<token> — detail page, exact URL-primary-key lookup.
