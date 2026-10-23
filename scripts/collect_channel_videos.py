@@ -336,7 +336,7 @@ def init_schema(conn1, conn2):
     conn1.commit()
     required = {"url", "title", "img", "rating", "rating_percentage", "views", "duration",
                 "duration_seconds", "channel_name", "tags"}
-    for name, conn in (("DATABASE_URL_1", conn1), ("DATABASE_URL_2", conn2)):
+    for name, conn in (("DATABASE_URL_3", conn1), ("DATABASE_URL_4", conn2)):
         with conn.cursor() as cur:
             cur.execute("SELECT column_name FROM information_schema.columns "
                         "WHERE table_schema = current_schema() AND table_name = 'videos'")
@@ -431,17 +431,17 @@ def main():
         ap.error("shard-index must be within shard-count")
     if args.workers < 1 or args.delay < 0 or args.timeout < 1 or args.retries < 0:
         ap.error("workers/timeout must be positive; delay/retries must be non-negative")
-    url1, url2 = os.getenv("DATABASE_URL_1", "").strip(), os.getenv("DATABASE_URL_2", "").strip()
+    url1, url2 = os.getenv("DATABASE_URL_3", "").strip(), os.getenv("DATABASE_URL_4", "").strip()
     if not url1 or not url2:
-        raise SystemExit("Set GitHub Actions secrets DATABASE_URL_1 and DATABASE_URL_2")
+        raise SystemExit("Set GitHub Actions secrets DATABASE_URL_3 and DATABASE_URL_4")
     if db_fingerprint(url1) == db_fingerprint(url2):
-        raise SystemExit("DATABASE_URL_1 and DATABASE_URL_2 appear to point at the same database")
+        raise SystemExit("DATABASE_URL_3 and DATABASE_URL_4 appear to point at the same database")
     conn1 = conn2 = None
     failures = []
     try:
         print("[startup] Connecting to both databases...", flush=True)
-        conn1 = connect_db(url1, f"video-collector-{args.shard_index}-db1")
-        conn2 = connect_db(url2, f"video-collector-{args.shard_index}-db2")
+        conn1 = connect_db(url1, f"video-collector-{args.shard_index}-db3")
+        conn2 = connect_db(url2, f"video-collector-{args.shard_index}-db4")
         print("[database] Connected to both databases.", flush=True)
         if not args.skip_schema:
             init_schema(conn1, conn2)
