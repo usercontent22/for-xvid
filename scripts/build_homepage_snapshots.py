@@ -229,11 +229,17 @@ def homepage_cache_refresh_status(now: datetime | None = None) -> bool | None:
 
     current = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
     today = current.date()
-    featured = cache_get_json(cache_key(f"homepage:feed:{today.isoformat()}:featured"))
-    tags = cache_get_json(cache_key("homepage:tag_catalog"))
-    feed_fresh = _cache_payload_is_fresh(featured, FEED_REFRESH_DAYS, current)
-    tags_fresh = _cache_payload_is_fresh(tags, TAG_REFRESH_DAYS, current)
-    return feed_fresh and tags_fresh
+    feed_payloads = [
+        cache_get_json(cache_key(f"homepage:feed:{today.isoformat()}:{section}"))
+        for section in ("featured", "popular", "discovery", "tags")
+    ]
+    tag_catalog = cache_get_json(cache_key("homepage:tag_catalog"))
+    feeds_fresh = all(
+        _cache_payload_is_fresh(payload, FEED_REFRESH_DAYS, current)
+        for payload in feed_payloads
+    )
+    tags_fresh = _cache_payload_is_fresh(tag_catalog, TAG_REFRESH_DAYS, current)
+    return feeds_fresh and tags_fresh
 
 
 def load_recent_tag_catalog(catalog_url: str, today: date):
