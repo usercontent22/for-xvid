@@ -23,15 +23,26 @@ def _join_base(base: str, path: str) -> str:
     return urljoin(base.rstrip("/") + "/", path.lstrip("/"))
 
 
+def _media_parts(value: str):
+    """Parse a media URL/path and remove the source's stray leading g/ folder."""
+    parsed = urlsplit(value)
+    path = parsed.path
+    # Some database rows store g/<asset-id>/0/<file> even though the CDN
+    # expects only <asset-id>/0/<file>. Apply this to relative and absolute URLs.
+    path = re.sub(r"^/?g(?=/[^/]+/0/)", "", path, count=1)
+    return parsed, path
+
+
 def thumbnail_url(raw_path: str | None) -> str:
     if not raw_path:
         return ""
     value = str(raw_path).strip()
-    parsed = urlsplit(value)
+    parsed, path = _media_parts(value)
     if parsed.scheme in ("http", "https") and parsed.netloc:
-        return value
+        return urlunsplit((parsed.scheme, parsed.netloc, path, parsed.query, parsed.fragment))
     base = _base_url("THUMBNAIL_BASE_URL", "IMAGE_BASE_URL") or DEFAULT_THUMBNAIL_BASE
-    return _join_base(base, value)
+    relative = urlunsplit(("", "", path, parsed.query, parsed.fragment))
+    return _join_base(base, relative)
 
 
 def preview_url(raw_path: str | None) -> str:
@@ -39,8 +50,7 @@ def preview_url(raw_path: str | None) -> str:
     if not raw_path:
         return ""
     value = str(raw_path).strip()
-    parsed = urlsplit(value)
-    path = parsed.path if parsed.scheme in ("http", "https") and parsed.netloc else value
+    parsed, path = _media_parts(value)
     replaced, count = re.subn(r"(/0/)[^/]+$", r"\1preview.mp4", path)
     if not count:
         return ""
@@ -59,8 +69,7 @@ def mosaic_url(raw_path: str | None) -> str:
     if not raw_path:
         return ""
     value = str(raw_path).strip()
-    parsed = urlsplit(value)
-    path = parsed.path if parsed.scheme in ("http", "https") and parsed.netloc else value
+    parsed, path = _media_parts(value)
     replaced, count = re.subn(r"(/0/)[^/]+$", r"\1mozaique_full.jpg", path)
     if not count:
         return ""
@@ -74,8 +83,7 @@ def image_variant_url(raw_path: str | None, number: int) -> str:
     if not raw_path or not 1 <= int(number) <= 30:
         return ""
     value = str(raw_path).strip()
-    parsed = urlsplit(value)
-    path = parsed.path if parsed.scheme in ("http", "https") and parsed.netloc else value
+    parsed, path = _media_parts(value)
     replaced, count = re.subn(r"(/0/)[^/]+$", rf"\1xv_{int(number)}_t.jpg", path)
     if not count:
         return ""
@@ -113,6 +121,8 @@ def format_duration(seconds: object, fallback: object = None) -> str:
 
 def decorate_video(video: dict) -> dict:
     item = dict(video)
+    item["title"] = str(item.get("title") or "").strip() or "Untitled video"
+    item["channel_name"] = str(item.get("channel_name") or "").strip()
     item["thumbnail_url"] = thumbnail_url(item.get("img"))
     item["preview_url"] = preview_url(item.get("img"))
     item["mosaic_url"] = mosaic_url(item.get("img"))
