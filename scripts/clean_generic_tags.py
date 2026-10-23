@@ -142,10 +142,10 @@ def main() -> int:
 
     stop_keys = sorted(GENERIC_TAG_KEYS)
     try:
-        before1 = count_rows(url1, "db1-count", stop_keys)
-        before2 = count_rows(url2, "db2-count", stop_keys)
+        before1 = count_rows(url1, "db3-count", stop_keys)
+        before2 = count_rows(url2, "db4-count", stop_keys)
         print(
-            f"[audit] generic-tag rows: db1={before1:,}; db2={before2:,}; "
+            f"[audit] generic-tag rows: db3={before1:,}; db4={before2:,}; "
             f"mode={'APPLY' if args.apply else 'DRY RUN'}",
             flush=True,
         )
@@ -157,10 +157,10 @@ def main() -> int:
             )
             return 0
 
-        done1 = clean_database(url1, "db1", stop_keys, args.batch_size)
-        done2 = clean_database(url2, "db2", stop_keys, args.batch_size)
+        done1 = clean_database(url1, "db3", stop_keys, args.batch_size)
+        done2 = clean_database(url2, "db4", stop_keys, args.batch_size)
         print(
-            f"[done] db1 cleaned={done1:,}; db2 cleaned={done2:,}; "
+            f"[done] db3 cleaned={done1:,}; db4 cleaned={done2:,}; "
             f"dry_run=false",
             flush=True,
         )
