@@ -54,6 +54,22 @@ def preview_url(raw_path: str | None) -> str:
     return _join_base(base, replaced)
 
 
+def mosaic_url(raw_path: str | None) -> str:
+    """Map a poster path like /<asset-id>/0/xv_29_t.jpg to its mosaic sprite."""
+    if not raw_path:
+        return ""
+    value = str(raw_path).strip()
+    parsed = urlsplit(value)
+    path = parsed.path if parsed.scheme in ("http", "https") and parsed.netloc else value
+    replaced, count = re.subn(r"(/0/)[^/]+$", r"\1mozaique_full.jpg", path)
+    if not count:
+        return ""
+    if parsed.scheme in ("http", "https") and parsed.netloc:
+        return urlunsplit((parsed.scheme, parsed.netloc, replaced, "", ""))
+    base = _base_url("THUMBNAIL_BASE_URL", "IMAGE_BASE_URL") or DEFAULT_THUMBNAIL_BASE
+    return _join_base(base, replaced)
+
+
 def image_variant_url(raw_path: str | None, number: int) -> str:
     if not raw_path or not 1 <= int(number) <= 30:
         return ""
@@ -99,6 +115,7 @@ def decorate_video(video: dict) -> dict:
     item = dict(video)
     item["thumbnail_url"] = thumbnail_url(item.get("img"))
     item["preview_url"] = preview_url(item.get("img"))
+    item["mosaic_url"] = mosaic_url(item.get("img"))
     item["video_href"] = f"/video/{_route_slug(item.get('title'))}--{_route_token(str(item.get('url') or ''))}"
     item["image_gallery_href"] = f"/images/{_route_slug(item.get('title'))}--{_route_token(str(item.get('url') or ''))}"
     channel = str(item.get("channel_name") or "").strip()
