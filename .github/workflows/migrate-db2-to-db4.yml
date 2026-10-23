@@ -1,6 +1,11 @@
 name: Migrate videos from DB2 to DB4
 
 on:
+  # One guarded full-run trigger; removed as soon as GitHub accepts this run.
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/migrate-db2-to-db4.yml"
   workflow_dispatch:
     inputs:
       batch_size:
@@ -29,6 +34,7 @@ concurrency:
 
 jobs:
   migrate:
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && startsWith(github.event.head_commit.message, '[run-db2-db4-full]')) }}
     name: Copy DB2 videos to DB4
     runs-on: ubuntu-latest
     timeout-minutes: 120
@@ -36,7 +42,7 @@ jobs:
       DATABASE_URL_2: ${{ secrets.DATABASE_URL_2 }}
       DATABASE_URL_4: ${{ secrets.DATABASE_URL_4 }}
       MIGRATION_BATCH_SIZE: ${{ inputs.batch_size || '10000' }}
-      MIGRATION_MAX_BATCHES: ${{ inputs.max_batches || '1' }}
+      MIGRATION_MAX_BATCHES: ${{ github.event_name == 'push' && startsWith(github.event.head_commit.message, '[run-db2-db4-full]') && '0' || inputs.max_batches || '1' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
