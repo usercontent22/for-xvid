@@ -151,7 +151,7 @@ def listing():
         section = "popular"
     page = request.args.get("page", default=1, type=int) or 1
     title = {"featured": "Featured videos", "popular": "Popular videos", "discovery": "Discover"}[section]
-    description = "A focused collection refreshed from the prepared video feeds."
+    description = "Explore a collection of videos chosen for you."
     if catalog_configured():
         result = _catalog_page(
             endpoint="browse.listing",
@@ -184,7 +184,7 @@ def search():
             endpoint="browse.search",
             values={"q": query},
             title=f"Search: {query}",
-            description="Search titles, channel names, and indexed tags in the video catalog.",
+            description="Search videos by title, channel, or tag.",
             search=query,
         )
         if result is not None:
@@ -193,7 +193,7 @@ def search():
     filtered = _filter_items(_snapshot_pool(data), search=query)
     return _fallback_page(
         title=f"Search: {query}",
-        description="Results from the prepared homepage highlights.",
+        description="Videos matching your search.",
         items=filtered,
         endpoint="browse.search",
         values={"q": query},

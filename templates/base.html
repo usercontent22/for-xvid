@@ -11,7 +11,7 @@
   <link rel="icon" href="{{ static_assets_base_url }}/favicon.ico">
   <link rel="apple-touch-icon" href="{{ static_assets_base_url }}/xxxworld-icon-256.webp">
   {% endif %}
-  <link rel="stylesheet" href="/styles.css?v=3">
+  <link rel="stylesheet" href="/styles.css?v=4">
   {% block head_extra %}{% endblock %}
 </head>
 <body>
@@ -47,10 +47,10 @@
         </form>
         <button class="mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="primary-nav">Menu</button>
         <nav class="primary-nav" id="primary-nav" aria-label="Main navigation">
-          <a href="/">Home</a>
-          <a href="/browse?section=popular">Popular</a>
-          <a href="/browse?section=discovery">Discover</a>
-          <span class="age-pill">18+</span>
+          <a href="/" {% if request.path == '/' %}aria-current="page"{% endif %}>Home</a>
+          <a href="/browse?section=popular" {% if request.path == '/browse' and request.args.get('section', 'popular') == 'popular' %}aria-current="page"{% endif %}>Popular</a>
+          <a href="/browse?section=discovery" {% if request.path == '/browse' and request.args.get('section') == 'discovery' %}aria-current="page"{% endif %}>Discover</a>
+          <a href="/#categories">Categories</a>
         </nav>
       </div>
     </header>
@@ -69,7 +69,6 @@
           {% endif %}
         </a>
         <p>Discover more. Find your favorites. Keep it simple.</p>
-        <span class="footer-age">Adults 18+ only</span>
       </div>
       <div class="footer-bottom">
         <span>© {{ current_year }} XXX World</span>
