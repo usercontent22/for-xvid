@@ -1,6 +1,7 @@
 """Thumbnail, hover-preview, gallery and display helpers."""
 from __future__ import annotations
 
+import html
 import os
 import re
 from urllib.parse import urlsplit, urlunsplit, urljoin
@@ -119,9 +120,20 @@ def format_duration(seconds: object, fallback: object = None) -> str:
     return f"{minutes}:{secs:02d}"
 
 
+def _decode_title(value: object) -> str:
+    """Decode HTML entities from scraped titles, including one double-encoded layer."""
+    title = str(value or "").strip()
+    for _ in range(2):
+        decoded = html.unescape(title)
+        if decoded == title:
+            break
+        title = decoded
+    return title.strip()
+
+
 def decorate_video(video: dict) -> dict:
     item = dict(video)
-    item["title"] = str(item.get("title") or "").strip() or "Untitled video"
+    item["title"] = _decode_title(item.get("title")) or "Untitled video"
     item["channel_name"] = str(item.get("channel_name") or "").strip()
     item["thumbnail_url"] = thumbnail_url(item.get("img"))
     item["preview_url"] = preview_url(item.get("img"))
