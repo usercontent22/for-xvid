@@ -75,7 +75,7 @@ separate checkpoint and retries transient failures up to three attempts. See
 - /healthz — non-secret deployment health indicators.
 - /sitemap.xml — URLs from the current snapshot pool.
 
-Full video playback URL resolution is intentionally not implemented yet because its rules are pending. The detail page shows the preview separately from the future full-playback source.
+Full HLS playback is resolved by the Neon Function source in `neon/functions/hlsresolve/index.js`. Configure the public function invocation URL as server-side `HLS_RESOLVER_URL`; the detail page asks the resolver only after a visitor selects **Play full video**. The resolver accepts only catalog-style `/<id>/<slug>` paths and transforms `/aaabd271c/my_video` to `https://www.xvideos.com/videos.aaabd271c/my_video`, then scans the returned page for an openly exposed HTTPS `.m3u8` playlist. It does not bypass logins, captchas, DRM, or other access controls. Playback depends on the source playlist being available and allowing cross-origin HLS requests. The detail page shows four same-channel thumbnails in the right column and renders related cards underneath the player.
 
 The browser age prompt is only a basic notice and a browser preference; it is not identity or legal-age verification. Review age-access requirements for each place you operate.
 
