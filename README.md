@@ -5,9 +5,9 @@ A modular Flask video-discovery website for Vercel. The metadata collector workf
 ## Structure
 
 - app.py: Flask/Vercel entrypoint and response headers.
-- web/db.py: bounded PostgreSQL reads and exact URL-primary-key lookup.
-- web/repositories/snapshots.py: tiny indexed homepage snapshot reads.
-- web/catalog.py: optional indexed catalog queries with cursor/keyset pagination.
+- web/db.py: bounded DB3/DB4 PostgreSQL reads and exact URL-primary-key lookup.
+- web/repositories/snapshots.py: tiny indexed homepage snapshot reads from DB5.
+- web/catalog.py: indexed parallel-shard queries with cursor/keyset pagination.
 - web/media.py: thumbnail, hover-preview, gallery, duration and view-format helpers.
 - web/routes/: homepage, browsing, search, channel, video details and image gallery blueprints.
 - templates/: reusable Jinja templates, including one shared video-card partial.
@@ -33,7 +33,7 @@ xxxworld-logo.svg, xxxworld-logo.webp, xxxworld-icon.svg, xxxworld-icon-32.webp,
 1. The homepage reads the tiny prepared `public.homepage_snapshots` table in DB5; visitors never trigger feed ranking.
 2. Video detail routes select DB3 or DB4 using the URL hash shard, with the other shard as a fallback. Lookups use the existing `videos.url` primary key.
 3. Browse/search/channel/category pages query DB3 and DB4 in parallel, use keyset pagination, and merge only a bounded page. There is no `OFFSET`, full-table `COUNT(*)`, or duplicated 1.3M-row catalog.
-4. DB3/DB4 use B-tree indexes for URL lookup, ranking, and channel pages, plus GIN expression indexes for full-text and tag search. DB5 has no GIN/JSONB index; its snapshot reads are already bounded by the primary key/date section.
+4. DB3/DB4 use B-tree indexes for URL lookup, ranking, and channel pages, plus one GIN expression index for title/channel full-text and a compact GIN array index for exact tags. DB5 has no GIN/JSONB index; snapshot reads are bounded by the primary key/date section.
 5. Source thumbnail paths such as /asset-id/0/xv_2_t.jpg are combined with THUMBNAIL_BASE_URL. Hover preview paths are derived as /asset-id/0/preview.mp4. Preview videos use preload=none and are only requested after a short hover delay.
 6. Channel URLs preserve the exact channel name in a URL-safe token, so spaces and punctuation do not break the route. A video thumbnail provides a stable avatar image on the detail page. A future catalog can choose and store a consistent channel avatar per channel.
 7. The image gallery generates numbered frame URLs from 1 to 30 to support image-oriented discovery. The remote source still has to provide each numbered image.
