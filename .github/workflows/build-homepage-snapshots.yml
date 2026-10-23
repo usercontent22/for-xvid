@@ -61,9 +61,16 @@ jobs:
         shell: bash
         run: |
           set +e
+          if [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
+            # Never repeat an expensive Neon ranking scan automatically; the next
+            # daily check can safely retry if the cache remains stale.
+            max_attempts=1
+          else
+            max_attempts=3
+          fi
           attempt=1
-          while [ "$attempt" -le 3 ]; do
-            echo "Homepage snapshot build attempt $attempt/3."
+          while [ "$attempt" -le "$max_attempts" ]; do
+            echo "Homepage cache build attempt $attempt/$max_attempts."
             if [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
               python scripts/build_homepage_snapshots.py \
                 --days "$SNAPSHOT_DAYS" \
@@ -85,8 +92,8 @@ jobs:
               exit 0
             fi
 
-            if [ "$attempt" -eq 3 ]; then
-              echo "Snapshot build failed after 3 attempts. Existing snapshots remain available."
+            if [ "$attempt" -eq "$max_attempts" ]; then
+              echo "Homepage cache build failed after $max_attempts attempt(s). Existing DB5 snapshots remain available."
               exit "$status"
             fi
 
