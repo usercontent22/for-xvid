@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build precomputed, diverse homepage feeds from both source databases."""
+"""Build compact homepage snapshots from DB3/DB4 and store them in DB5."""
 from __future__ import annotations
 
 import argparse
@@ -42,7 +42,7 @@ WITH candidates AS (
     SELECT url
     FROM public.videos
     WHERE views IS NOT NULL
-    ORDER BY views DESC NULLS LAST, url
+    ORDER BY views DESC, url DESC
     LIMIT %s
 )
 SELECT v.url, v.title, v.img, v.rating_percentage, v.views,
@@ -55,8 +55,8 @@ RATING_CANDIDATES_SQL = """
 WITH candidates AS (
     SELECT url
     FROM public.videos
-    WHERE rating_percentage IS NOT NULL
-    ORDER BY rating_percentage DESC NULLS LAST, views DESC NULLS LAST, url
+    WHERE rating_percentage IS NOT NULL AND views IS NOT NULL
+    ORDER BY rating_percentage DESC, views DESC, url DESC
     LIMIT %s
 )
 SELECT v.url, v.title, v.img, v.rating_percentage, v.views,
@@ -289,38 +289,43 @@ def main() -> int:
     if args.candidate_limit < FEED_LIMIT:
         parser.error(f"--candidate-limit must be at least {FEED_LIMIT}")
 
-    url1 = os.getenv("DATABASE_URL_1", "").strip()
-    url2 = os.getenv("DATABASE_URL_2", "").strip()
-    if not url1 or not url2:
-        print("Set GitHub Actions secrets DATABASE_URL_1 and DATABASE_URL_2", file=sys.stderr)
+    url3 = os.getenv("DATABASE_URL_3", "").strip()
+    url4 = os.getenv("DATABASE_URL_4", "").strip()
+    url5 = os.getenv("DATABASE_URL_5", "").strip()
+    if not url3 or not url4 or not url5:
+        print(
+            "Set GitHub Actions secrets DATABASE_URL_3, DATABASE_URL_4, and DATABASE_URL_5.",
+            file=sys.stderr,
+        )
         return 2
-    if fingerprint(url1) == fingerprint(url2):
-        print("DATABASE_URL_1 and DATABASE_URL_2 appear to point at the same database", file=sys.stderr)
+    fingerprints = {fingerprint(url3), fingerprint(url4), fingerprint(url5)}
+    if len(fingerprints) != 3:
+        print("DATABASE_URL_3, DATABASE_URL_4, and DATABASE_URL_5 must be different databases.", file=sys.stderr)
         return 2
 
     try:
         if not args.skip_schema:
-            with connect(url1, "schema") as conn:
+            with connect(url5, "schema") as conn:
                 with conn.cursor() as cur:
                     cur.execute(CREATE_SNAPSHOT_TABLE_SQL)
                 conn.commit()
         if args.init_schema_only:
-            print("[schema] public.homepage_snapshots ready in DATABASE_URL_1", flush=True)
+            print("[schema] public.homepage_snapshots ready in DATABASE_URL_5", flush=True)
             return 0
 
         today = datetime.now(timezone.utc).date()
         generated_at = datetime.now(timezone.utc).isoformat()
-        connection_urls = (url1, url2)
-        candidates1 = get_candidates(url1, "db1-candidates", args.candidate_limit)
-        candidates2 = get_candidates(url2, "db2-candidates", args.candidate_limit)
+        connection_urls = (url3, url4)
+        candidates3 = get_candidates(url3, "db3-candidates", args.candidate_limit)
+        candidates4 = get_candidates(url4, "db4-candidates", args.candidate_limit)
         merged: dict[str, dict] = {}
-        for video in candidates1 + candidates2:
+        for video in candidates3 + candidates4:
             old = merged.get(video["url"])
             if old is None or video["quality_score"] > old["quality_score"]:
                 merged[video["url"]] = video
         candidates = list(merged.values())
 
-        tag_catalog, refresh_tags = load_recent_tag_catalog(url1, today)
+        tag_catalog, refresh_tags = load_recent_tag_catalog(url5, today)
         if refresh_tags:
             tag_catalog = get_tag_catalog(connection_urls)
             print(f"[tags] refreshed canonical tag catalog: {len(tag_catalog)} tags", flush=True)
@@ -331,8 +336,8 @@ def main() -> int:
         snapshots = []
         used_urls: set[str] = set()
         source_counts = {
-            "database_1_candidates": len(candidates1),
-            "database_2_candidates": len(candidates2),
+            "database_3_candidates": len(candidates3),
+            "database_4_candidates": len(candidates4),
             "merged_unique_candidates": len(candidates),
         }
 
@@ -365,7 +370,7 @@ def main() -> int:
             }
             snapshots.append((today, "tag_catalog", canonical_payload, source_counts))
 
-        with connect(url1, "write-snapshots") as conn:
+        with connect(url5, "write-snapshots") as conn:
             with conn.cursor() as cur:
                 cur.execute(CREATE_SNAPSHOT_TABLE_SQL)
                 for day, section, payload, counts in snapshots:
@@ -377,7 +382,7 @@ def main() -> int:
 
         print(
             f"[done] candidate_pool={len(candidates):,}; days={args.days}; "
-            f"snapshots_written={len(snapshots)}; destination=DATABASE_URL_1",
+            f"snapshots_written={len(snapshots)}; destination=DATABASE_URL_5",
             flush=True,
         )
         return 0
