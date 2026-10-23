@@ -13,6 +13,9 @@ on:
         required: false
         default: "3000"
         type: string
+  schedule:
+    # Daily check is cheap: the script exits before touching Neon while Redis is fresh.
+    - cron: "17 8 * * *"
 
 permissions:
   contents: read
@@ -29,6 +32,7 @@ jobs:
       DATABASE_URL_3: ${{ secrets.DATABASE_URL_3 }}
       DATABASE_URL_4: ${{ secrets.DATABASE_URL_4 }}
       DATABASE_URL_5: ${{ secrets.DATABASE_URL_5 }}
+      REDIS_URL: ${{ secrets.REDIS_URL }}
       SNAPSHOT_DAYS: ${{ github.event_name == 'workflow_dispatch' && inputs.days || '3' }}
       CANDIDATE_LIMIT: ${{ github.event_name == 'workflow_dispatch' && inputs.candidate_limit || '3000' }}
     steps:
@@ -47,7 +51,7 @@ jobs:
       - name: Validate required database secrets
         shell: bash
         run: |
-          for name in DATABASE_URL_3 DATABASE_URL_4 DATABASE_URL_5; do
+          for name in DATABASE_URL_3 DATABASE_URL_4 DATABASE_URL_5 REDIS_URL; do
             if [ -z "${!name}" ]; then
               echo "Missing GitHub Actions secret $name. GitHub Actions secrets are separate from Vercel environment variables."
               exit 2
@@ -60,14 +64,25 @@ jobs:
           attempt=1
           while [ "$attempt" -le 3 ]; do
             echo "Homepage snapshot build attempt $attempt/3."
-            if python scripts/build_homepage_snapshots.py --init-schema-only &&
+            if [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
               python scripts/build_homepage_snapshots.py \
                 --days "$SNAPSHOT_DAYS" \
                 --candidate-limit "$CANDIDATE_LIMIT" \
-                --skip-schema; then
-              exit 0
-            else
+                --skip-if-fresh
               status=$?
+            else
+              if python scripts/build_homepage_snapshots.py --init-schema-only &&
+                python scripts/build_homepage_snapshots.py \
+                  --days "$SNAPSHOT_DAYS" \
+                  --candidate-limit "$CANDIDATE_LIMIT" \
+                  --skip-schema; then
+                exit 0
+              else
+                status=$?
+              fi
+            fi
+            if [ "$status" -eq 0 ]; then
+              exit 0
             fi
 
             if [ "$attempt" -eq 3 ]; then
