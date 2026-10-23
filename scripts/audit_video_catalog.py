@@ -22,7 +22,7 @@ SELECT
     COUNT(*) FILTER (WHERE COALESCE(cardinality(tags), 0) > 0) AS rows_with_tags,
     COUNT(*) FILTER (WHERE COALESCE(cardinality(tags), 0) = 0) AS rows_without_tags,
     COALESCE(SUM(COALESCE(cardinality(tags), 0)), 0) AS tag_entries,
-    COUNT(*) FILTER (WHERE tags_scraped_at IS NULL) AS tag_scrape_pending,
+    COUNT(*) FILTER (WHERE tags_scraped_at IS NULL AND COALESCE(cardinality(tags), 0) = 0) AS tag_scrape_pending,
     COUNT(*) FILTER (WHERE NULLIF(BTRIM(title), '') IS NULL) AS blank_titles,
     COUNT(*) FILTER (WHERE NULLIF(BTRIM(img), '') IS NULL) AS blank_thumbnails,
     COUNT(*) FILTER (WHERE NULLIF(BTRIM(channel_name), '') IS NULL) AS blank_channel_names,
