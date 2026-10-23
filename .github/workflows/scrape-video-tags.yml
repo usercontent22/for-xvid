@@ -38,8 +38,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      DATABASE_URL_1: ${{ secrets.DATABASE_URL_1 }}
-      DATABASE_URL_2: ${{ secrets.DATABASE_URL_2 }}
+      DATABASE_URL_3: ${{ secrets.DATABASE_URL_3 }}
+      DATABASE_URL_4: ${{ secrets.DATABASE_URL_4 }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -73,8 +73,8 @@ jobs:
       group: video-tag-scrape-shard-${{ matrix.shard }}
       cancel-in-progress: false
     env:
-      DATABASE_URL_1: ${{ secrets.DATABASE_URL_1 }}
-      DATABASE_URL_2: ${{ secrets.DATABASE_URL_2 }}
+      DATABASE_URL_3: ${{ secrets.DATABASE_URL_3 }}
+      DATABASE_URL_4: ${{ secrets.DATABASE_URL_4 }}
       SHARD_INDEX: ${{ matrix.shard }}
       MAX_ROWS_PER_DB: ${{ github.event_name == 'workflow_dispatch' && inputs.max_rows_per_db || '0' }}
       WORKERS: ${{ github.event_name == 'workflow_dispatch' && inputs.workers_per_shard || '4' }}
