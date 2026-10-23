@@ -46,6 +46,7 @@ SELECT_PENDING_SQL = """
 SELECT url, tags
 FROM public.videos
 WHERE tags_scraped_at IS NULL
+  AND cardinality(tags) = 0
   AND url > %s
   AND mod(abs(hashtext(url)::bigint), %s) = %s
 ORDER BY url
@@ -146,7 +147,7 @@ def connect_db(connection_url, application_name):
 
 
 def init_schema(connection_urls):
-    for index, connection_url in enumerate(connection_urls, start=1):
+    for index, connection_url in zip((3, 4), connection_urls):
         conn = None
         try:
             print(f"[schema] connecting to DATABASE_URL_{index}", flush=True)
