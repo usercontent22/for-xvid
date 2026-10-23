@@ -15,33 +15,31 @@ A modular Flask video-discovery website for Vercel. The metadata collector workf
 
 ## Vercel environment
 
-DATABASE_URL_1 and DATABASE_URL_2 are already configured in the project. They should remain server-only.
+The live website uses three server-only PostgreSQL variables:
 
-Configure these additional variables in Vercel:
+- `DATABASE_URL_3`: first video-data shard.
+- `DATABASE_URL_4`: second video-data shard.
+- `DATABASE_URL_5`: tiny homepage snapshot/tag-feed store.
 
-- THUMBNAIL_BASE_URL: the base host that serves paths stored in videos.img. The example host is configured as a fallback, but use your actual current image host.
-- STATIC_ASSETS_BASE_URL: public URL base for the files in the public Neon Object Storage path for-xvide/static. It should be the directory URL immediately above the logo/icon filenames.
-- PREVIEW_BASE_URL: optional. Use only if preview.mp4 files are hosted on a different domain than thumbnails.
-- SITE_URL: optional canonical site origin for sitemap URLs.
-- CATALOG_DATABASE_URL: optional, only after you have provisioned and populated the separate indexed read catalog.
+The app no longer reads DB1 or DB2. Detail routes choose DB3 or DB4 from the same stable SHA-256 URL partition used by ingestion; list/search routes query the two shards in parallel and merge only the top page. DB3 and DB4 keep the actual video rows and compact query indexes. DB5 stores only the small prepared JSON feed snapshots—not a duplicate catalog.
 
-Do not prefix database variables with NEXT_PUBLIC or use them in browser code. The website never returns database URLs from health or application endpoints.
+Also configure `THUMBNAIL_BASE_URL`, `STATIC_ASSETS_BASE_URL`, optional `PREVIEW_BASE_URL`, and optional `SITE_URL`. Do not prefix database variables with `NEXT_PUBLIC` or expose them in browser code. The health endpoint reports only whether server-side configuration is present, never connection strings.
 
 Static branding files expected below STATIC_ASSETS_BASE_URL:
 xxxworld-logo.svg, xxxworld-logo.webp, xxxworld-icon.svg, xxxworld-icon-32.webp, xxxworld-icon-64.webp, xxxworld-icon-128.webp, xxxworld-icon-256.webp, xxxworld-icon-512.webp and favicon.ico.
 
 ## Database and load strategy
 
-1. The homepage reads the prepared public.homepage_snapshots table in DATABASE_URL_1; it never recomputes ranking queries for each visitor.
-2. Video details decode a stable URL-safe route token and look up videos.url, the existing primary key. No new numeric video ID migration is required.
-3. No route runs COUNT(*) against the video catalog. Once a dedicated read catalog is configured, listing/search routes use keyset pagination and fetch one extra record to detect a next page instead of calculating total pages.
-4. Full search and complete channel/category listings use CATALOG_DATABASE_URL only. The two source databases lack title-search and tag/channel indexes, and their storage budgets are tight. Until the serving catalog is available, browse and search deliberately use a bounded pool of precomputed highlights rather than issuing expensive full-catalog scans.
+1. The homepage reads the tiny prepared `public.homepage_snapshots` table in DB5; visitors never trigger feed ranking.
+2. Video detail routes select DB3 or DB4 using the URL hash shard, with the other shard as a fallback. Lookups use the existing `videos.url` primary key.
+3. Browse/search/channel/category pages query DB3 and DB4 in parallel, use keyset pagination, and merge only a bounded page. There is no `OFFSET`, full-table `COUNT(*)`, or duplicated 1.3M-row catalog.
+4. DB3/DB4 use B-tree indexes for URL lookup, ranking, and channel pages, plus GIN expression indexes for full-text and tag search. DB5 has no GIN/JSONB index; its snapshot reads are already bounded by the primary key/date section.
 5. Source thumbnail paths such as /asset-id/0/xv_2_t.jpg are combined with THUMBNAIL_BASE_URL. Hover preview paths are derived as /asset-id/0/preview.mp4. Preview videos use preload=none and are only requested after a short hover delay.
 6. Channel URLs preserve the exact channel name in a URL-safe token, so spaces and punctuation do not break the route. A video thumbnail provides a stable avatar image on the detail page. A future catalog can choose and store a consistent channel avatar per channel.
 7. The image gallery generates numbered frame URLs from 1 to 30 to support image-oriented discovery. The remote source still has to provide each numbered image.
 8. Response cache headers allow Vercel's shared cache to reuse anonymous GET responses. The homepage has a short shared cache lifetime; assets are static CDN files.
 
-The proposed catalog schema is in sql/read_catalog_schema.sql. It is intentionally not created by this website: first budget for it, create it separately, backfill in batches, establish incremental sync, and verify indexes and sizes. Keep the source tables as the metadata system of record.
+The serving index SQL is in `sql/serving_indexes_db3_db4.sql`; the compact DB5 snapshot schema is in `sql/homepage_snapshots_db5.sql`. These leave the video rows in DB3/DB4 and avoid a second full catalog copy.
 
 
 ## Initial database migration
