@@ -29,11 +29,9 @@ CREATE INDEX IF NOT EXISTS videos_search_fts_idx
         )
     );
 
--- Tag/category filters use a separate compact tag-only text-search index.
-CREATE INDEX IF NOT EXISTS videos_tags_fts_idx
-    ON public.videos USING GIN (
-        to_tsvector('simple'::regconfig, array_to_string(tags, ' '))
-    );
+-- Exact tag/category containment: smaller than maintaining a second text-search GIN.
+CREATE INDEX IF NOT EXISTS videos_tags_gin_idx
+    ON public.videos USING GIN (tags);
 
 -- Tag-scraper bookkeeping: only rows with no tags and no scrape timestamp are indexed.
 ALTER TABLE public.videos
