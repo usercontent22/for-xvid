@@ -3,6 +3,7 @@ import unittest
 from datetime import datetime, timezone
 from unittest.mock import patch
 
+from scripts.build_homepage_snapshots import homepage_cache_refresh_status
 from web.cache import cache_key
 from web.catalog import list_catalog
 from web.repositories.snapshots import load_homepage_data
@@ -79,6 +80,42 @@ class CatalogRedisCacheTests(unittest.TestCase):
 
         self.assertEqual(result, cached)
         fetch_shard.assert_not_called()
+
+
+class HomepageRefreshScheduleTests(unittest.TestCase):
+    def test_scheduled_refresh_skips_only_when_all_keys_are_fresh(self):
+        now = datetime.now(timezone.utc)
+        fresh = {
+            "generated_at": now.isoformat(),
+            "items": [{"tag": "fresh"}],
+        }
+        with (
+            patch("scripts.build_homepage_snapshots.get_redis_client") as client_factory,
+            patch("scripts.build_homepage_snapshots.cache_get_json", return_value=fresh),
+        ):
+            client_factory.return_value.ping.return_value = True
+            result = homepage_cache_refresh_status(now)
+
+        self.assertTrue(result)
+
+    def test_scheduled_refresh_runs_when_a_feed_is_stale(self):
+        now = datetime.now(timezone.utc)
+        fresh = {"generated_at": now.isoformat(), "items": []}
+        stale = {
+            "generated_at": "2026-10-01T00:00:00+00:00",
+            "items": [],
+        }
+        with (
+            patch("scripts.build_homepage_snapshots.get_redis_client") as client_factory,
+            patch(
+                "scripts.build_homepage_snapshots.cache_get_json",
+                side_effect=[fresh, stale, fresh, fresh, fresh],
+            ),
+        ):
+            client_factory.return_value.ping.return_value = True
+            result = homepage_cache_refresh_status(now)
+
+        self.assertFalse(result)
 
 
 if __name__ == "__main__":
