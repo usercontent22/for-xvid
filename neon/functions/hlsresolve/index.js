@@ -1,7 +1,7 @@
 "use strict";
 
 // Public endpoint: fetches only the user's own XVideos catalog path, transforms it
-// to the requested videos.<path> route, and extracts an openly exposed HTTPS HLS
+// to the requested video.<path> route, and extracts an openly exposed HTTPS HLS
 // playlist. It does not bypass logins, age gates, captchas, DRM, or other access controls.
 
 const ALLOWED_ORIGINS = new Set([
@@ -75,8 +75,8 @@ function targetFromPath(path) {
     return null;
   }
 
-  // Example: /aaabd271c/my_video -> https://www.xvideos.com/videos.aaabd271c/my_video
-  return new URL("https://www.xvideos.com/videos" + path.replace("/", "."));
+  // Example: /aaabd271c/my_video -> https://www.xvideos.com/video.aaabd271c/my_video
+  return new URL("https://www.xvideos.com/video" + path.replace("/", "."));
 }
 
 function normalizePageText(html) {
