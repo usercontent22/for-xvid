@@ -33,8 +33,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
-      DATABASE_URL_1: ${{ secrets.DATABASE_URL_1 }}
-      DATABASE_URL_2: ${{ secrets.DATABASE_URL_2 }}
+      DATABASE_URL_3: ${{ secrets.DATABASE_URL_3 }}
+      DATABASE_URL_4: ${{ secrets.DATABASE_URL_4 }}
+      DATABASE_URL_5: ${{ secrets.DATABASE_URL_5 }}
       SNAPSHOT_DAYS: ${{ github.event_name == 'workflow_dispatch' && inputs.days || '3' }}
       CANDIDATE_LIMIT: ${{ github.event_name == 'workflow_dispatch' && inputs.candidate_limit || '3000' }}
     steps:
