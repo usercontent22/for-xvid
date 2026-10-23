@@ -122,8 +122,8 @@ class MetadataNormalizationTests(unittest.TestCase):
 
     def test_command_line_entry_point_executes_main(self):
         env = os.environ.copy()
-        env.pop("DATABASE_URL_1", None)
-        env.pop("DATABASE_URL_2", None)
+        env.pop("DATABASE_URL_3", None)
+        env.pop("DATABASE_URL_4", None)
         script = Path(__file__).resolve().parents[1] / "scripts" / "collect_channel_videos.py"
         result = subprocess.run(
             [sys.executable, str(script)],
@@ -134,7 +134,7 @@ class MetadataNormalizationTests(unittest.TestCase):
             check=False,
         )
         self.assertEqual(result.returncode, 1)
-        self.assertIn("Set GitHub Actions secrets DATABASE_URL_1 and DATABASE_URL_2", result.stderr)
+        self.assertIn("Set GitHub Actions secrets DATABASE_URL_3 and DATABASE_URL_4", result.stderr)
 
 
 if __name__ == "__main__":

@@ -33,8 +33,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
-      DATABASE_URL_1: ${{ secrets.DATABASE_URL_1 }}
-      DATABASE_URL_2: ${{ secrets.DATABASE_URL_2 }}
+      DATABASE_URL_3: ${{ secrets.DATABASE_URL_3 }}
+      DATABASE_URL_4: ${{ secrets.DATABASE_URL_4 }}
+      DATABASE_URL_5: ${{ secrets.DATABASE_URL_5 }}
       SNAPSHOT_DAYS: ${{ github.event_name == 'workflow_dispatch' && inputs.days || '3' }}
       CANDIDATE_LIMIT: ${{ github.event_name == 'workflow_dispatch' && inputs.candidate_limit || '3000' }}
     steps:
@@ -50,11 +51,40 @@ jobs:
         run: python -m pip install -r requirements.txt
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
-      - name: Initialize homepage snapshot table
-        run: python scripts/build_homepage_snapshots.py --init-schema-only
-      - name: Generate the next homepage windows
+      - name: Validate required database secrets
+        shell: bash
         run: |
-          python scripts/build_homepage_snapshots.py \
-            --days "$SNAPSHOT_DAYS" \
-            --candidate-limit "$CANDIDATE_LIMIT" \
-            --skip-schema
+          for name in DATABASE_URL_3 DATABASE_URL_4 DATABASE_URL_5; do
+            if [ -z "${!name}" ]; then
+              echo "Missing GitHub Actions secret $name. GitHub Actions secrets are separate from Vercel environment variables."
+              exit 2
+            fi
+          done
+      - name: Build homepage snapshots with checkpoint-safe retries
+        shell: bash
+        run: |
+          set +e
+          attempt=1
+          while [ "$attempt" -le 3 ]; do
+            echo "Homepage snapshot build attempt $attempt/3."
+            if python scripts/build_homepage_snapshots.py --init-schema-only &&
+              python scripts/build_homepage_snapshots.py \
+                --days "$SNAPSHOT_DAYS" \
+                --candidate-limit "$CANDIDATE_LIMIT" \
+                --skip-schema; then
+              exit 0
+            else
+              status=$?
+            fi
+
+            if [ "$attempt" -eq 3 ]; then
+              echo "Snapshot build failed after 3 attempts. Existing snapshots remain available."
+              exit "$status"
+            fi
+
+            delay=$((attempt * 10))
+            echo "Snapshot build attempt failed with exit code $status; retrying in $delay seconds."
+            sleep "$delay"
+            attempt=$((attempt + 1))
+          done
+          exit 1

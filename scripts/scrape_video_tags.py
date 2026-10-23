@@ -40,12 +40,13 @@ ADD_STATUS_COLUMN_SQL = (
 )
 PENDING_INDEX_SQL = (
     "CREATE INDEX IF NOT EXISTS videos_tags_pending_idx "
-    "ON public.videos (url) WHERE tags_scraped_at IS NULL"
+    "ON public.videos (url) WHERE tags_scraped_at IS NULL AND cardinality(tags) = 0"
 )
 SELECT_PENDING_SQL = """
 SELECT url, tags
 FROM public.videos
 WHERE tags_scraped_at IS NULL
+  AND cardinality(tags) = 0
   AND url > %s
   AND mod(abs(hashtext(url)::bigint), %s) = %s
 ORDER BY url
@@ -146,7 +147,7 @@ def connect_db(connection_url, application_name):
 
 
 def init_schema(connection_urls):
-    for index, connection_url in enumerate(connection_urls, start=1):
+    for index, connection_url in zip((3, 4), connection_urls):
         conn = None
         try:
             print(f"[schema] connecting to DATABASE_URL_{index}", flush=True)
@@ -337,12 +338,12 @@ def main():
     if args.delay < 0 or args.retries < 0 or args.max_rows_per_db < 0:
         parser.error("delay, retries and max-rows-per-db must be non-negative")
 
-    url1 = os.getenv("DATABASE_URL_1", "").strip()
-    url2 = os.getenv("DATABASE_URL_2", "").strip()
+    url1 = os.getenv("DATABASE_URL_3", "").strip()
+    url2 = os.getenv("DATABASE_URL_4", "").strip()
     if not url1 or not url2:
-        raise SystemExit("Set GitHub Actions secrets DATABASE_URL_1 and DATABASE_URL_2")
+        raise SystemExit("Set GitHub Actions secrets DATABASE_URL_3 and DATABASE_URL_4")
     if database_fingerprint(url1) == database_fingerprint(url2):
-        raise SystemExit("DATABASE_URL_1 and DATABASE_URL_2 appear to point at the same database")
+        raise SystemExit("DATABASE_URL_3 and DATABASE_URL_4 appear to point at the same database")
 
     connection_urls = (url1, url2)
     failures = 0

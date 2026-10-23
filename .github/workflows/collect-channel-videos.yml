@@ -55,8 +55,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      DATABASE_URL_1: ${{ secrets.DATABASE_URL_1 }}
-      DATABASE_URL_2: ${{ secrets.DATABASE_URL_2 }}
+      DATABASE_URL_3: ${{ secrets.DATABASE_URL_3 }}
+      DATABASE_URL_4: ${{ secrets.DATABASE_URL_4 }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -84,8 +84,8 @@ jobs:
       matrix:
         shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
     env:
-      DATABASE_URL_1: ${{ secrets.DATABASE_URL_1 }}
-      DATABASE_URL_2: ${{ secrets.DATABASE_URL_2 }}
+      DATABASE_URL_3: ${{ secrets.DATABASE_URL_3 }}
+      DATABASE_URL_4: ${{ secrets.DATABASE_URL_4 }}
       SHARD_INDEX: ${{ matrix.shard }}
       MAX_CHANNELS: ${{ inputs.max_channels || '0' }}
       MAX_PAGES: ${{ inputs.max_pages || '0' }}

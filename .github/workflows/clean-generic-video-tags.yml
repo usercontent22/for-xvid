@@ -26,8 +26,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 360
     env:
-      DATABASE_URL_1: ${{ secrets.DATABASE_URL_1 }}
-      DATABASE_URL_2: ${{ secrets.DATABASE_URL_2 }}
+      DATABASE_URL_3: ${{ secrets.DATABASE_URL_3 }}
+      DATABASE_URL_4: ${{ secrets.DATABASE_URL_4 }}
       APPLY_CLEANUP: ${{ github.event_name == 'push' && 'true' || inputs.apply_cleanup }}
       CONFIRMATION: ${{ github.event_name == 'push' && 'REMOVE GENERIC TAGS FROM ALL VIDEO ROWS' || inputs.confirmation }}
       BATCH_SIZE: ${{ github.event_name == 'push' && '5000' || inputs.batch_size || '5000' }}

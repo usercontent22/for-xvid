@@ -171,3 +171,29 @@ The DB2 → DB4 migration uses the same keyset batches, PostgreSQL `COPY` stagin
 insert-only URL conflict handling, 10-tag maximum, and up-to-three checkpoint-safe
 attempts as the DB1 → DB3 workflow. Each migration has a distinct state key, so
 their progress does not overlap.
+
+
+## Stage 5: active website architecture on DB3, DB4, and DB5
+
+DB1/DB2 are no longer read by the website or by future ingestion/tag-cleanup workflows.
+The live app reads video records from DB3/DB4, while DB5 holds only small homepage
+snapshots and a compact tag catalog. No full duplicate video catalog is created.
+
+- URL lookups use the same SHA-256 first-byte modulo-two partition as the collector.
+  DB3 owns bucket 0, DB4 owns bucket 1, and the other shard is only a lookup fallback.
+- Browse, title/channel search, exact-tag category pages, and ranking reads query
+  both shards in parallel. Results are merged in the app using URL-keyset cursors;
+  no `OFFSET` or whole-catalog `COUNT(*)` query is used.
+- `sql/serving_indexes_db3_db4.sql` is the tested index plan. It reuses DB3's
+  existing ranking indexes and adds missing indexes to DB4, plus channel, search,
+  tag-containment, and a small partial pending-tag index to each shard.
+- `sql/homepage_snapshots_db5.sql` contains only the primary-keyed JSON snapshot
+  table. The builder retains the current feed date window rather than keeping
+  historical feed payloads forever. A JSONB GIN index is intentionally omitted.
+- Homepage builds run on a schedule and after successful tag cleanup/tag scraping.
+  The workflow checks its required secrets before connecting and retries transient
+  failures up to three times.
+
+For GitHub Actions, configure `DATABASE_URL_3`, `DATABASE_URL_4`, and
+`DATABASE_URL_5` under **Settings → Secrets and variables → Actions**. The
+Vercel Production environment variables are separate from GitHub Actions secrets.
