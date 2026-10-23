@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build compact homepage snapshots from DB3/DB4 and store them in DB5."""
+"""Build compact DB5 fallback snapshots and a Redis homepage cache from DB3/DB4."""
 from __future__ import annotations
 
 import argparse
