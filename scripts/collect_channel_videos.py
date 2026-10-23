@@ -343,7 +343,7 @@ def init_schema(conn1, conn2):
             missing = required - {row[0] for row in cur.fetchall()}
         if missing:
             raise RuntimeError(f"{name} public.videos missing columns: {', '.join(sorted(missing))}")
-    print("[schema] videos table ready in both databases; channel/page checkpoints are stored in DB3", flush=True)
+    print("[schema] videos table ready in DB3 and DB4; channel/page checkpoints are stored in DB3", flush=True)
 
 
 class Writer:
