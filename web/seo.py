@@ -159,7 +159,7 @@ def video_object(video: dict, page_path: str | None = None) -> dict:
     return item
 
 
-def video_item_list_schema(videos: list[dict], name: str, list_path: str) -> dict:
+def video_item_list_schema(videos: list[dict], name: str, list_path: str, fragment: str = "itemlist") -> dict:
     """Represent a visible collection of videos as an ordered ItemList."""
     list_url = absolute_url(list_path)
     elements = []
@@ -185,7 +185,7 @@ def video_item_list_schema(videos: list[dict], name: str, list_path: str) -> dic
         })
     return {
         "@type": "ItemList",
-        "@id": list_url + "#itemlist",
+        "@id": list_url + "#" + fragment,
         "name": _clean_text(name, "Videos"),
         "url": list_url,
         "numberOfItems": len(elements),
@@ -194,7 +194,7 @@ def video_item_list_schema(videos: list[dict], name: str, list_path: str) -> dic
     }
 
 
-def named_item_list_schema(items: list[dict], name: str, list_path: str) -> dict:
+def named_item_list_schema(items: list[dict], name: str, list_path: str, fragment: str = "itemlist") -> dict:
     """Represent visible category links or image frames as an ItemList."""
     list_url = absolute_url(list_path)
     elements = []
@@ -218,7 +218,7 @@ def named_item_list_schema(items: list[dict], name: str, list_path: str) -> dict
         elements.append({"@type": "ListItem", "position": position, "item": thing})
     return {
         "@type": "ItemList",
-        "@id": list_url + "#itemlist",
+        "@id": list_url + "#" + fragment,
         "name": _clean_text(name, "Items"),
         "url": list_url,
         "numberOfItems": len(elements),
