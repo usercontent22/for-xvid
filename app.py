@@ -66,6 +66,7 @@ def healthz():
         database_configured=bool(os.getenv("DATABASE_URL_3") and os.getenv("DATABASE_URL_4")),
         catalog_configured=bool(os.getenv("DATABASE_URL_3") and os.getenv("DATABASE_URL_4")),
         snapshot_database_configured=bool(os.getenv("DATABASE_URL_5")),
+        redis_configured=bool(os.getenv("REDIS_URL")),
         thumbnail_domain_configured=bool(
             os.getenv("THUMBNAIL_BASE_URL") or os.getenv("IMAGE_BASE_URL")
         ),

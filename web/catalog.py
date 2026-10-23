@@ -7,16 +7,20 @@ top page from each shard. DB5 is reserved for compact homepage snapshots.
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
 
+from web.cache import cache_get_json, cache_key, cache_set_json
 from web.db import DatabaseUnavailable, catalog_sources, fetch_rows
 from web.ids import normalize_channel_key
 
 
 logger = logging.getLogger(__name__)
+CATALOG_CACHE_TTL_SECONDS = 300
+SEARCH_CACHE_TTL_SECONDS = 90
 CATALOG_COLUMNS = """
 url, title, img, rating_percentage, views, duration_seconds,
 channel_name, tags
@@ -147,6 +151,29 @@ def _sort_rows(rows: list[dict[str, Any]], sort: str) -> list[dict[str, Any]]:
     return rows
 
 
+def _catalog_cache_key(
+    *,
+    sort: str,
+    cursor: str | None,
+    limit: int,
+    channel: str | None,
+    tag: str | None,
+    search: str | None,
+) -> str:
+    # Hash parameters so arbitrary search text never becomes a Redis key.
+    parameters = {
+        "sort": sort,
+        "cursor": cursor or "",
+        "limit": int(limit),
+        "channel": channel or "",
+        "tag": tag or "",
+        "search": search or "",
+    }
+    signature = json.dumps(parameters, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    digest = hashlib.sha256(signature.encode("utf-8")).hexdigest()
+    return cache_key(f"catalog:{digest}")
+
+
 def list_catalog(
     *,
     sort: str = "views",
@@ -156,12 +183,30 @@ def list_catalog(
     tag: str | None = None,
     search: str | None = None,
 ) -> dict[str, Any] | None:
-    """Merge a bounded top-page from each indexed shard; no OFFSET or COUNT(*)."""
+    """Merge bounded top pages from each indexed shard, with a short Redis cache."""
     if sort not in {"views", "rating"}:
         sort = "views"
+    page_size = min(max(int(limit), 1), 48)
     sources = [(name, url) for name, url in catalog_sources() if url]
     if not sources:
         return None
+
+    cache_key_value = _catalog_cache_key(
+        sort=sort,
+        cursor=cursor,
+        limit=page_size,
+        channel=channel,
+        tag=tag,
+        search=search,
+    )
+    cached = cache_get_json(cache_key_value)
+    if (
+        isinstance(cached, dict)
+        and isinstance(cached.get("items"), list)
+        and all(isinstance(item, dict) for item in cached["items"])
+        and (cached.get("next_cursor") is None or isinstance(cached.get("next_cursor"), str))
+    ):
+        return cached
 
     current = _decode_cursor(cursor, sort)
     rows_by_shard: list[list[dict[str, Any]]] = []
@@ -173,7 +218,7 @@ def list_catalog(
                 url,
                 sort=sort,
                 cursor=current,
-                limit=limit,
+                limit=page_size,
                 channel=channel,
                 tag=tag,
                 search=search,
@@ -201,8 +246,15 @@ def list_catalog(
                 unique.setdefault(str(source_url), row)
 
     merged = _sort_rows(list(unique.values()), sort)
-    page_size = min(max(int(limit), 1), 48)
     has_more = len(merged) > page_size
     items = merged[:page_size]
     next_cursor = _encode_cursor(items[-1], sort) if has_more and items else None
-    return {"items": items, "has_more": has_more, "next_cursor": next_cursor}
+    result = {"items": items, "has_more": has_more, "next_cursor": next_cursor}
+
+    # Do not cache partial results when one database shard failed; a transient
+    # outage must not turn a partial page into a normal cached response.
+    if failures == 0:
+        ttl = SEARCH_CACHE_TTL_SECONDS if search else CATALOG_CACHE_TTL_SECONDS
+        cache_set_json(cache_key_value, result, ttl)
+
+    return result
