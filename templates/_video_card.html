@@ -7,7 +7,6 @@
     {% if video.preview_url %}<video class="video-card__preview" muted loop playsinline preload="none" aria-hidden="true"></video>{% endif %}
     <span class="video-card__play" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-play"></use></svg></span>
     {% if video.duration_label %}<span class="video-duration">{{ video.duration_label }}</span>{% endif %}
-    {% if video.rating_label %}<span class="video-rating">{{ video.rating_label }} <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-heart"></use></svg></span>{% endif %}
   </a>
   <div class="video-card__body">
     <a class="video-card__title" href="{{ video.video_href }}">{{ video.title }}</a>
@@ -17,7 +16,7 @@
       {% elif video.channel_name %}
       <span class="video-channel">{{ video.channel_name }}</span>
       {% endif %}
-      {% if video.views is not none %}<span>{{ video.views_label }} views</span>{% endif %}
+      {% if video.views is defined and video.views is not none %}<span>{{ video.views_label }} views</span>{% endif %}
     </div>
   </div>
 </article>
