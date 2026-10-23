@@ -26,8 +26,7 @@ SEARCH_VECTOR_SQL = """
 to_tsvector(
     'simple'::regconfig,
     COALESCE(title, '') || ' ' ||
-    COALESCE(channel_name, '') || ' ' ||
-    array_to_string(tags, ' ')
+    COALESCE(channel_name, '')
 )
 """
 TAG_VECTOR_SQL = "to_tsvector('simple'::regconfig, array_to_string(tags, ' '))"
