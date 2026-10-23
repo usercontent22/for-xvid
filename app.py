@@ -47,6 +47,7 @@ def local_javascript():
 def inject_template_context():
     return {
         "static_assets_base_url": os.getenv("STATIC_ASSETS_BASE_URL", "").strip().rstrip("/"),
+        "hls_resolver_url": os.getenv("HLS_RESOLVER_URL", "").strip().rstrip("/"),
         "current_year": datetime.now(timezone.utc).year,
     }
 
