@@ -88,8 +88,8 @@ def _fetch_shard(
         params.append(normalize_channel_key(channel))
 
     if tag:
-        # Case-insensitive indexed tag matching across the array's token stream.
-        filters.append(f"{TAG_VECTOR_SQL} @@ phraseto_tsquery('simple'::regconfig, %s)")
+        # Exact source-tag match backed by the compact GIN array index.
+        filters.append("tags @> ARRAY[%s]::text[]")
         params.append(tag)
 
     if search:
