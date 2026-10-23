@@ -26,6 +26,7 @@ img, video { max-width: 100%; }
 svg { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .icon-sprite { position: absolute; width: 0 !important; height: 0 !important; overflow: hidden; pointer-events: none; }
 .ui-icon { display: inline-block; width: 1em; height: 1em; flex: 0 0 auto; vertical-align: -.14em; }
+.ui-icon-sm { width: 14px; height: 14px; }
 [hidden] { display: none !important; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 .site-shell { min-height: 100vh; overflow: clip; }
@@ -60,7 +61,7 @@ main { width: min(1440px, calc(100% - 64px)); margin: 0 auto; }
 .hero-search svg { flex: 0 0 auto; width: 19px; height: 19px; color: #838090; }
 .hero-search input { font-size: 13px; }
 .hero-search button { display: flex; align-items: center; gap: 12px; height: 38px; padding: 0 14px; border: 0; border-radius: 10px; background: linear-gradient(125deg, var(--accent), #e87db6); color: #21121d; font-size: 12px; font-weight: 800; cursor: pointer; white-space: nowrap; }
-.hero-search button span { font-size: 16px; }
+.hero-search button .ui-icon-sm { width: 16px; height: 16px; }
 .hero-topics { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 20px; color: #827f90; font-size: 11px; }
 .hero-topics a { padding: 5px 9px; border: 1px solid rgba(255,255,255,.09); border-radius: 7px; color: #d3cddc; background: rgba(255,255,255,.035); transition: background .18s, border-color .18s; }
 .hero-topics a:hover { border-color: rgba(243,99,168,.3); background: rgba(243,99,168,.08); }
