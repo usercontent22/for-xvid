@@ -65,5 +65,18 @@ class ServingShardTests(unittest.TestCase):
         self.assertTrue(fetch.call_args.args[1].find("tags @> ARRAY[%s]::text[]") >= 0)
 
 
+    def test_search_combines_full_text_and_exact_tag_indexes(self):
+        with patch("web.catalog.catalog_sources", return_value=[
+            ("DATABASE_URL_3", "db3"),
+            ("DATABASE_URL_4", "db4"),
+        ]), patch("web.catalog.fetch_rows", return_value=[]) as fetch:
+            result = list_catalog(search="blond", limit=12)
+
+        self.assertEqual(result["items"], [])
+        sql = fetch.call_args.args[1]
+        self.assertIn("websearch_to_tsquery", sql)
+        self.assertIn("OR tags @> ARRAY[%s]::text[]", sql)
+
+
 if __name__ == "__main__":
     unittest.main()
