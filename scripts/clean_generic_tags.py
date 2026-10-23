@@ -131,13 +131,13 @@ def main() -> int:
     if not args.apply and args.confirm:
         parser.error("--confirm is only valid with --apply")
 
-    url1 = os.getenv("DATABASE_URL_1", "").strip()
-    url2 = os.getenv("DATABASE_URL_2", "").strip()
+    url1 = os.getenv("DATABASE_URL_3", "").strip()
+    url2 = os.getenv("DATABASE_URL_4", "").strip()
     if not url1 or not url2:
-        print("Set GitHub Actions secrets DATABASE_URL_1 and DATABASE_URL_2", file=sys.stderr)
+        print("Set GitHub Actions secrets DATABASE_URL_3 and DATABASE_URL_4", file=sys.stderr)
         return 2
     if fingerprint(url1) == fingerprint(url2):
-        print("DATABASE_URL_1 and DATABASE_URL_2 appear to point at the same database", file=sys.stderr)
+        print("DATABASE_URL_3 and DATABASE_URL_4 appear to point at the same database", file=sys.stderr)
         return 2
 
     stop_keys = sorted(GENERIC_TAG_KEYS)
