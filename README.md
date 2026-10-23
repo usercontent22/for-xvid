@@ -67,7 +67,7 @@ separate checkpoint and retries transient failures up to three attempts. See
 
 ## Routes
 
-- / — snapshot-backed homepage.
+- / — Redis-first homepage with DB5 snapshot fallback.
 - /browse?section=featured|popular|discovery — prebuilt video collections.
 - /search?q=... — indexed title/channel full-text and exact-tag search across DB3/DB4, with bounded keyset pagination.
 - /category/<slug>--<token> — tag/category page.
