@@ -3,6 +3,7 @@
 {% block description %}{% if video %}Explore this video preview, details, tags, channel, and related picks on XXX World.{% else %}This video could not be loaded right now.{% endif %}{% endblock %}
 {% block head_extra %}
 {% if video %}
+{% if hls_resolver_url %}<script src="https://cdn.jsdelivr.net/npm/hls.js@1.7.3/dist/hls.min.js" defer></script>{% endif %}
 <meta property="og:type" content="video.other">
 <meta property="og:title" content="{{ video.title }}">
 {% if video.thumbnail_url %}<meta property="og:image" content="{{ video.thumbnail_url }}">{% endif %}
@@ -22,17 +23,23 @@
   <div class="detail-layout">
     <div class="detail-main">
       <div class="detail-player">
-        {% if video.preview_url %}
-        <video class="detail-preview" controls muted loop playsinline preload="none" poster="{{ video.thumbnail_url }}">
-          <source src="{{ video.preview_url }}" type="video/mp4">
+        {% if video.preview_url or video.thumbnail_url %}
+        <video id="detail-hls-player" class="detail-preview" controls muted loop playsinline preload="none" poster="{{ video.thumbnail_url }}" data-source-path="{{ video.url }}" data-resolver-url="{{ hls_resolver_url }}">
+          {% if video.preview_url %}<source src="{{ video.preview_url }}" type="video/mp4">{% endif %}
         </video>
-        {% elif video.thumbnail_url %}
-        <img class="detail-poster" src="{{ video.thumbnail_url }}" alt="{{ video.title }}" fetchpriority="high">
         {% else %}
         <div class="detail-preview-message">Preview unavailable for this thumbnail</div>
         {% endif %}
-        <div class="player-caption"><span class="live-dot"></span> Preview clip <span class="caption-muted">· Full playback link will be connected separately</span></div>
+        <div class="player-caption"><span class="live-dot"></span> Video player <span class="caption-muted">· Preview and full HLS playback</span></div>
       </div>
+      {% if hls_resolver_url and video.url %}
+      <div class="full-player-actions">
+        <button class="button button-primary" id="load-full-video" type="button">▶ Play full video</button>
+        <p class="full-player-status" id="full-player-status" role="status" aria-live="polite">Select Play full video to resolve the HLS stream.</p>
+      </div>
+      {% else %}
+      <p class="full-player-status" role="status">Full playback is not configured yet; the preview remains available.</p>
+      {% endif %}
       <div class="detail-title-row">
         <div><p class="eyebrow">VIDEO DETAILS</p><h1>{{ video.title }}</h1></div>
         <a class="button button-quiet" href="{{ video.image_gallery_href }}">View image frames <span aria-hidden="true">↗</span></a>
@@ -58,22 +65,50 @@
       {% endif %}
     </div>
     <aside class="detail-sidebar">
-      <div class="sidebar-card">
-        <p class="eyebrow">KEEP EXPLORING</p><h2>Find a new favorite.</h2><p>Browse categories and discover more from channels you like.</p>
+      {% if channel_videos %}
+      <section class="sidebar-channel-picks">
+        <div class="sidebar-section-heading">
+          <div><p class="eyebrow">SAME CHANNEL</p><h2>More from {{ video.channel_name }}</h2></div>
+          {% if video.channel_href %}<a class="text-link" href="{{ video.channel_href }}">All <span aria-hidden="true">↗</span></a>{% endif %}
+        </div>
+        <div class="channel-video-grid">
+          {% for channel_video in channel_videos[:4] %}
+          <article class="channel-video-card">
+            <a class="channel-video-thumb" href="{{ channel_video.video_href }}" aria-label="{{ channel_video.title }}">
+              <img src="{{ channel_video.thumbnail_url }}" alt="" loading="lazy" decoding="async">
+              {% if channel_video.duration_label %}<span>{{ channel_video.duration_label }}</span>{% endif %}
+            </a>
+            <a class="channel-video-title" href="{{ channel_video.video_href }}">{{ channel_video.title }}</a>
+            <small>{{ channel_video.views_label }} views</small>
+          </article>
+          {% endfor %}
+        </div>
+      </section>
+      {% elif video.channel_href %}
+      <section class="sidebar-channel-picks">
+        <p class="eyebrow">SAME CHANNEL</p><h2>More from {{ video.channel_name }}</h2>
+        <a class="button button-quiet button-wide" href="{{ video.channel_href }}">Browse this channel ↗</a>
+      </section>
+      {% endif %}
+      <div class="sidebar-card sidebar-explore-card">
+        <p class="eyebrow">KEEP EXPLORING</p><h2>Find a new favorite.</h2><p>Discover more videos and channels.</p>
         <a class="button button-primary button-wide" href="/browse?section=discovery">Explore videos <span aria-hidden="true">↗</span></a>
       </div>
-      {% if related %}
-      <div class="sidebar-related"><h2>Related picks</h2>
-      {% for video in related[:4] %}
-        <div class="mini-video">
-          <a class="mini-video-media" href="{{ video.video_href }}"><img src="{{ video.thumbnail_url }}" alt="" loading="lazy"><span>{{ video.duration_label }}</span></a>
-          <div><a class="mini-video-title" href="{{ video.video_href }}">{{ video.title }}</a><small>{{ video.views_label }} views</small></div>
-        </div>
-      {% endfor %}
-      </div>
-      {% endif %}
     </aside>
   </div>
+  {% if related %}
+  <section class="related-section content-section">
+    <div class="section-heading">
+      <div><p class="eyebrow">YOU MAY ALSO LIKE</p><h2>Related videos</h2><p class="section-subtitle">More picks based on this video’s tags and interests.</p></div>
+      <a class="text-link" href="/browse?section=discovery">Explore more <span aria-hidden="true">↗</span></a>
+    </div>
+    <div class="video-grid video-grid-listing">
+      {% for video in related %}
+      {% include "_video_card.html" %}
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
   {% endif %}
 </section>
 {% endblock %}
