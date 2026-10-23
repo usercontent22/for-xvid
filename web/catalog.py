@@ -91,8 +91,13 @@ def _fetch_shard(
         params.append(tag)
 
     if search:
-        filters.append(f"{SEARCH_VECTOR_SQL} @@ websearch_to_tsquery('simple'::regconfig, %s)")
-        params.append(search)
+        # Search title/channel through FTS and allow an exact full-tag match through the
+        # small array GIN index. PostgreSQL can combine both indexes using BitmapOr.
+        filters.append(
+            f"({SEARCH_VECTOR_SQL} @@ websearch_to_tsquery('simple'::regconfig, %s) "
+            "OR tags @> ARRAY[%s]::text[])"
+        )
+        params.extend((search, search))
 
     if sort == "rating":
         filters.append("rating_percentage IS NOT NULL")
