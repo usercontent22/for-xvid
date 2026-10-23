@@ -378,6 +378,16 @@ def main() -> int:
                         UPSERT_SNAPSHOT_SQL,
                         (day, section, Jsonb(payload), Jsonb(counts)),
                     )
+                # Keep only the active feed window. Historical feed payloads are never read,
+                # and retaining them indefinitely would slowly grow DB5 over time.
+                cur.execute(
+                    """
+                    DELETE FROM public.homepage_snapshots
+                    WHERE section <> 'tag_catalog'
+                      AND (feed_date < %s OR feed_date >= %s)
+                    """,
+                    (today, today + timedelta(days=args.days)),
+                )
             conn.commit()
 
         print(
