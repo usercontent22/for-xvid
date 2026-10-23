@@ -19,7 +19,7 @@ The live website uses three server-only PostgreSQL variables plus a server-only 
 
 - `DATABASE_URL_3`: first video-data shard.
 - `DATABASE_URL_4`: second video-data shard.
- - `DATABASE_URL_5`: tiny homepage snapshot/tag-feed fallback store.
+- `DATABASE_URL_5`: tiny homepage snapshot/tag-feed fallback store.
 - `REDIS_URL`: Upstash Redis TLS connection URL (`rediss://...`), used only by server-side Python and GitHub Actions.
 
 The app no longer reads DB1 or DB2. Detail routes choose DB3 or DB4 from the same stable SHA-256 URL partition used by ingestion; list/search routes query the two shards in parallel and merge only the top page. DB3 and DB4 keep the actual video rows and compact query indexes. DB5 stores only the small prepared JSON feed snapshots—not a duplicate catalog.
@@ -37,9 +37,9 @@ xxxworld-logo.svg, xxxworld-logo.webp, xxxworld-icon.svg, xxxworld-icon-32.webp,
 4. Repeated exact video lookups are cached in Redis for 30 minutes. DB3/DB4 still use B-tree indexes for URL lookup, ranking, and channel pages, plus one GIN expression index for title/channel full-text and a compact GIN array index for exact tags. DB5 has no GIN/JSONB index; snapshot reads are bounded by the primary key/date section.
 5. Source thumbnail paths such as /asset-id/0/xv_2_t.jpg are combined with THUMBNAIL_BASE_URL. Hover preview paths are derived as /asset-id/0/preview.mp4. Preview videos use preload=none and are only requested after a short hover delay.
 6. Upstash Redis is a disposable cache, not the source of truth. Prepared feed keys have a 9-day expiry but are refreshed after 3 days; the canonical tag catalogue has a 14-day expiry and is refreshed after 7 days. The homepage cache workflow checks freshness daily and exits before Neon queries if both are still fresh. Add `REDIS_URL` to both Vercel server-side environment variables and GitHub Actions repository secrets; never commit its value.
-6. Channel URLs preserve the exact channel name in a URL-safe token, so spaces and punctuation do not break the route. A video thumbnail provides a stable avatar image on the detail page. A future catalog can choose and store a consistent channel avatar per channel.
-7. The image gallery generates numbered frame URLs from 1 to 30 to support image-oriented discovery. The remote source still has to provide each numbered image.
-8. Response cache headers allow Vercel's shared cache to reuse anonymous GET responses. The homepage has a short shared cache lifetime; assets are static CDN files.
+7. Channel URLs preserve the exact channel name in a URL-safe token, so spaces and punctuation do not break the route. A video thumbnail provides a stable avatar image on the detail page. A future catalog can choose and store a consistent channel avatar per channel.
+8. The image gallery generates numbered frame URLs from 1 to 30 to support image-oriented discovery. The remote source still has to provide each numbered image.
+9. Response cache headers allow Vercel's shared cache to reuse anonymous GET responses. The homepage has a short shared cache lifetime; assets are static CDN files.
 
 The serving index SQL is in `sql/serving_indexes_db3_db4.sql`; the compact DB5 snapshot schema is in `sql/homepage_snapshots_db5.sql`. These leave the video rows in DB3/DB4 and avoid a second full catalog copy.
 
