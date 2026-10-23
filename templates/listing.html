@@ -26,7 +26,7 @@
   </div>
 
   {% if snapshot_notice %}
-  <div class="info-strip"><span class="info-strip-icon" aria-hidden="true">i</span><div><strong>Curated snapshot mode</strong><p>This page is showing the prepared highlights only. Full-catalog search and channel/category pagination are designed to use a separate indexed read catalog, so these pages never scan the large source tables.</p></div></div>
+  <div class="info-strip"><span class="info-strip-icon" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24"><use href="#icon-info"></use></svg></span><div><strong>Curated snapshot mode</strong><p>This page is showing the prepared highlights only. Full-catalog search and channel/category pagination are designed to use a separate indexed read catalog, so these pages never scan the large source tables.</p></div></div>
   {% endif %}
 
   {% if videos %}
@@ -34,13 +34,13 @@
     {% for video in videos %}{% include "_video_card.html" %}{% endfor %}
   </div>
   <nav class="pagination" aria-label="Collection pagination">
-    {% if previous_url %}<a class="page-arrow" href="{{ previous_url }}">← <span>Previous</span></a>{% else %}<span class="page-arrow is-disabled">← <span>Previous</span></span>{% endif %}
+    {% if previous_url %}<a class="page-arrow" href="{{ previous_url }}"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-left"></use></svg><span>Previous</span></a>{% else %}<span class="page-arrow is-disabled"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-left"></use></svg><span>Previous</span></span>{% endif %}
     {% if page and pages %}<span class="page-count">Page <b>{{ page }}</b> of <b>{{ pages }}</b></span>{% elif catalog_ready %}<span class="page-count">Indexed results</span>{% else %}<span class="page-count">Prepared highlights</span>{% endif %}
-    {% if next_url %}<a class="page-arrow page-arrow-next" href="{{ next_url }}"><span>Next</span> →</a>{% else %}<span class="page-arrow page-arrow-next is-disabled"><span>Next</span> →</span>{% endif %}
+    {% if next_url %}<a class="page-arrow page-arrow-next" href="{{ next_url }}"><span>Next</span> <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-right"></use></svg></a>{% else %}<span class="page-arrow page-arrow-next is-disabled"><span>Next</span> <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-right"></use></svg></span>{% endif %}
   </nav>
   {% else %}
   <div class="empty-state">
-    <span class="empty-icon" aria-hidden="true">⌕</span>
+    <span class="empty-icon" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-search"></use></svg></span>
     <h2>No matches in this collection yet</h2>
     {% if snapshot_notice %}<p>This prepared selection is intentionally small. The full indexed catalog is not connected yet, so this page will not scan the source databases.</p>{% else %}<p>Try another search or head back to the homepage to explore the current highlights.</p>{% endif %}
     <a class="button button-primary" href="/">Explore XXX World</a>
