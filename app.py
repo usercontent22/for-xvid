@@ -10,6 +10,7 @@ from flask import Flask, Response, jsonify, render_template, request, send_from_
 
 from web.ids import encode_token, slugify
 from web.media import format_views
+from web.seo import build_page_seo, canonical_path_for_request
 from web.routes.browse import browse
 from web.routes.home import home
 from web.routes.videos import videos
@@ -49,6 +50,12 @@ def inject_template_context():
         "static_assets_base_url": os.getenv("STATIC_ASSETS_BASE_URL", "").strip().rstrip("/"),
         "hls_resolver_url": os.getenv("HLS_RESOLVER_URL", "").strip().rstrip("/"),
         "current_year": datetime.now(timezone.utc).year,
+        "seo": build_page_seo(
+            title="XXX World — Discover videos",
+            description="Discover videos, explore categories, and browse channels on XXX World.",
+            canonical_path=canonical_path_for_request(),
+            noindex=request.endpoint in {"browse.search", "not_found", "internal_error"},
+        ),
     }
 
 
@@ -99,13 +106,25 @@ def response_headers(response):
 
 @app.errorhandler(404)
 def not_found(_error):
-    return render_template("404.html"), 404
+    seo = build_page_seo(
+        title="Page not found — XXX World",
+        description="The requested page could not be found on XXX World.",
+        canonical_path=canonical_path_for_request(),
+        noindex=True,
+    )
+    return render_template("404.html", seo=seo), 404
 
 
 @app.errorhandler(500)
 def internal_error(error):
     logging.exception("Unhandled web request error: %s", error)
-    return render_template("404.html", server_error=True), 500
+    seo = build_page_seo(
+        title="Something went wrong — XXX World",
+        description="The page could not be loaded right now.",
+        canonical_path=canonical_path_for_request(),
+        noindex=True,
+    )
+    return render_template("404.html", server_error=True, seo=seo), 500
 
 
 if __name__ == "__main__":

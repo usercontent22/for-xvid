@@ -11,6 +11,12 @@ from web.catalog import catalog_configured
 from web.ids import encode_token, slugify
 from web.media import decorate_video
 from web.repositories.snapshots import load_homepage_data
+from web.seo import (
+    absolute_url,
+    build_page_seo,
+    named_item_list_schema,
+    video_item_list_schema,
+)
 
 
 home = Blueprint("home", __name__)
@@ -53,13 +59,71 @@ def index():
     if not isinstance(tag_items, list):
         tag_items = []
     tags = [item for item in tag_items if isinstance(item, dict) and item.get("tag")]
+    primary_title = "Popular videos" if popular else ("Featured videos" if featured else "Discover videos")
+    primary_list = video_item_list_schema(
+        primary_videos[:12],
+        primary_title,
+        "/",
+        fragment="popular-videos-list",
+    )
+    additional_schema = [primary_list]
+
+    visible_featured = featured[:8] if featured and popular else []
+    if visible_featured:
+        additional_schema.append(
+            video_item_list_schema(
+                visible_featured,
+                "Featured videos",
+                "/",
+                fragment="featured-videos-list",
+            )
+        )
+
+    visible_discovery = discovery[:8] if discovery and (popular or featured) else []
+    if visible_discovery:
+        additional_schema.append(
+            video_item_list_schema(
+                visible_discovery,
+                "More to discover",
+                "/",
+                fragment="discovery-videos-list",
+            )
+        )
+
+    visible_tags = tags[:18]
+    category_items = [
+        {
+            "name": str(item["tag"]),
+            "url": f"/category/{slugify(str(item['tag']))}--{encode_token(str(item['tag']))}",
+        }
+        for item in visible_tags
+    ]
+    if category_items:
+        additional_schema.append(
+            named_item_list_schema(
+                category_items,
+                "Video categories",
+                "/",
+                fragment="categories-list",
+            )
+        )
+
+    seo = build_page_seo(
+        title=f"{primary_title} — XXX World",
+        description="Browse popular videos, discover new picks, and explore video categories on XXX World.",
+        canonical_path="/",
+        page_type="CollectionPage",
+        main_entity={"@id": absolute_url("/") + "#popular-videos-list"},
+        additional_nodes=additional_schema,
+    )
     return render_template(
         "home.html",
+        seo=seo,
         featured=featured,
         popular=popular,
         discovery=discovery,
         primary_videos=primary_videos,
-        tags=tags[:18],
+        tags=visible_tags,
         feed_date=data.get("featured", {}).get("date", ""),
         catalog_ready=catalog_configured(),
         snapshots_ready=bool(featured or popular or discovery),

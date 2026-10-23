@@ -2,12 +2,7 @@
 {% block title %}{% if video %}{{ page_title }}{% else %}Video temporarily unavailable{% endif %} — XXX World{% endblock %}
 {% block description %}{% if video %}Explore this video preview, details, tags, channel, and related picks on XXX World.{% else %}This video could not be loaded right now.{% endif %}{% endblock %}
 {% block head_extra %}
-{% if video %}
-{% if hls_resolver_url %}<script src="https://cdn.jsdelivr.net/npm/hls.js@1.7.3/dist/hls.min.js" defer></script>{% endif %}
-<meta property="og:type" content="video.other">
-<meta property="og:title" content="{{ video.title }}">
-{% if video.thumbnail_url %}<meta property="og:image" content="{{ video.thumbnail_url }}">{% endif %}
-{% endif %}
+{% if video and hls_resolver_url %}<script src="https://cdn.jsdelivr.net/npm/hls.js@1.7.3/dist/hls.min.js" defer></script>{% endif %}
 {% endblock %}
 {% block content %}
 <section class="detail-page">

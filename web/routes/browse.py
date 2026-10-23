@@ -9,6 +9,11 @@ from web.catalog import catalog_configured, list_catalog
 from web.ids import decode_history, decode_token, encode_history, normalize_channel_key
 from web.media import decorate_video
 from web.repositories.snapshots import load_homepage_data
+from web.seo import (
+    build_page_seo,
+    canonical_path_for_request,
+    video_item_list_schema,
+)
 
 
 browse = Blueprint("browse", __name__)
@@ -63,6 +68,45 @@ def _page_url(endpoint: str, values: dict, cursor: str | None, history: list[str
     return result
 
 
+def _seo_for_collection(
+    *,
+    title: str,
+    description: str,
+    videos: list[dict],
+    endpoint: str,
+    is_channel: bool = False,
+) -> dict:
+    canonical_path = canonical_path_for_request()
+    page_type = "SearchResultsPage" if endpoint == "browse.search" else "CollectionPage"
+    list_schema = video_item_list_schema(videos, title, canonical_path, fragment="videos-list")
+    additional_nodes = [list_schema] if videos else []
+    main_entity = {"@id": list_schema["@id"]} if videos else None
+    image = next((video.get("thumbnail_url") for video in videos if video.get("thumbnail_url")), None)
+
+    if endpoint == "browse.search":
+        breadcrumbs = [("Home", "/"), ("Search results", canonical_path)]
+    elif endpoint == "browse.category":
+        breadcrumbs = [("Home", "/"), ("Categories", "/#categories"), (title, canonical_path)]
+    elif endpoint == "browse.channel" or is_channel:
+        breadcrumbs = [("Home", "/"), ("Popular videos", "/browse?section=popular"), (title, canonical_path)]
+    else:
+        breadcrumbs = [("Home", "/"), ("Videos", "/browse?section=popular"), (title, canonical_path)]
+
+    about = {"@type": "Thing", "name": title} if endpoint in {"browse.category", "browse.channel"} else None
+    return build_page_seo(
+        title=f"{title} — XXX World",
+        description=description,
+        canonical_path=canonical_path,
+        page_type=page_type,
+        image=image,
+        breadcrumbs=breadcrumbs,
+        main_entity=main_entity,
+        additional_nodes=additional_nodes,
+        about=about,
+        noindex=endpoint == "browse.search",
+    )
+
+
 def _fallback_page(
     *,
     title: str,
@@ -81,8 +125,16 @@ def _fallback_page(
     start = (page - 1) * PAGE_SIZE
     decorated = [decorate_video(item) for item in items[start:start + PAGE_SIZE]]
     avatar_url = next((item.get("thumbnail_url") for item in decorated if item.get("thumbnail_url")), "")
+    seo = _seo_for_collection(
+        title=title,
+        description=description,
+        videos=decorated,
+        endpoint=endpoint,
+        is_channel=is_channel,
+    )
     return render_template(
         "listing.html",
+        seo=seo,
         title=title,
         description=description,
         videos=decorated,
@@ -126,8 +178,16 @@ def _catalog_page(
     decorated = [decorate_video(item) for item in result["items"]]
     nav = _page_url(endpoint, values, cursor, history, result.get("next_cursor"))
     avatar_url = next((item.get("thumbnail_url") for item in decorated if item.get("thumbnail_url")), "")
+    seo = _seo_for_collection(
+        title=title,
+        description=description,
+        videos=decorated,
+        endpoint=endpoint,
+        is_channel=is_channel,
+    )
     return render_template(
         "listing.html",
+        seo=seo,
         title=title,
         description=description,
         videos=decorated,
