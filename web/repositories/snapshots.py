@@ -14,7 +14,6 @@ from web.cache import RedisError, cache_key, cache_set_json, get_redis_client
 
 logger = logging.getLogger(__name__)
 HOME_SECTIONS = ("featured", "popular", "discovery", "tags")
-FEED_TTL_SECONDS = 9 * 24 * 60 * 60
 FALLBACK_CACHE_TTL_SECONDS = 60 * 60
 FEED_LOOKBACK_DAYS = 9
 FEED_LOOKAHEAD_DAYS = 2
