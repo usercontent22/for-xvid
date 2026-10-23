@@ -54,7 +54,6 @@ def get_redis_client():
             retry_on_timeout=False,
             health_check_interval=30,
             max_connections=16,
-            client_name="xxxworld-web",
         )
         _client_url = url
         return _client
