@@ -69,4 +69,119 @@
       });
     });
   }
+
+  const fullVideo = document.getElementById("detail-hls-player");
+  const fullVideoButton = document.getElementById("load-full-video");
+  const fullVideoStatus = document.getElementById("full-player-status");
+
+  if (fullVideo && fullVideoButton && fullVideoStatus) {
+    const sourcePath = fullVideo.getAttribute("data-source-path") || "";
+    const resolverUrl = fullVideo.getAttribute("data-resolver-url") || "";
+    const previewUrl = (fullVideo.querySelector("source") || {}).src || "";
+    let hlsInstance = null;
+    let resolving = false;
+
+    function setPlaybackStatus(message, isError) {
+      fullVideoStatus.textContent = message;
+      fullVideoStatus.classList.toggle("is-error", Boolean(isError));
+    }
+
+    fullVideoButton.addEventListener("click", async function () {
+      if (resolving) return;
+      if (!resolverUrl || !sourcePath) {
+        setPlaybackStatus("Full playback is not configured for this video.", true);
+        return;
+      }
+
+      resolving = true;
+      fullVideoButton.disabled = true;
+      fullVideoButton.textContent = "Loading stream…";
+      setPlaybackStatus("Finding the HLS playlist…", false);
+
+      try {
+        const endpoint = new URL(resolverUrl);
+        endpoint.searchParams.set("path", sourcePath);
+        const response = await fetch(endpoint.toString(), {
+          method: "GET",
+          headers: { "Accept": "application/json" },
+          credentials: "omit",
+          cache: "no-store"
+        });
+        const data = await response.json().catch(function () { return {}; });
+        if (!response.ok || !data.hls_url) {
+          throw new Error(data.error || "The source did not provide a playable HLS stream.");
+        }
+
+        const streamUrl = new URL(data.hls_url);
+        if (streamUrl.protocol !== "https:" || !/\.m3u8$/i.test(streamUrl.pathname)) {
+          throw new Error("The resolver returned an invalid playlist URL.");
+        }
+
+        if (hlsInstance) {
+          hlsInstance.destroy();
+          hlsInstance = null;
+        }
+        fullVideo.pause();
+        fullVideo.removeAttribute("src");
+        fullVideo.querySelectorAll("source").forEach(function (source) { source.remove(); });
+        fullVideo.loop = false;
+        fullVideo.muted = false;
+        fullVideo.load();
+
+        if (window.Hls && window.Hls.isSupported()) {
+          hlsInstance = new window.Hls({
+            enableWorker: true,
+            lowLatencyMode: false,
+            backBufferLength: 30
+          });
+          hlsInstance.on(window.Hls.Events.ERROR, function (_event, info) {
+            if (info && info.fatal) {
+              setPlaybackStatus("HLS playback failed. The source may block cross-origin playback or the stream may have expired.", true);
+              fullVideoButton.disabled = false;
+              fullVideoButton.textContent = "Retry full video";
+            }
+          });
+          hlsInstance.loadSource(streamUrl.href);
+          hlsInstance.attachMedia(fullVideo);
+          hlsInstance.on(window.Hls.Events.MANIFEST_PARSED, function () {
+            const attempt = fullVideo.play();
+            if (attempt && typeof attempt.catch === "function") {
+              attempt.catch(function () { setPlaybackStatus("Stream ready — press play in the player.", false); });
+            }
+          });
+        } else if (fullVideo.canPlayType("application/vnd.apple.mpegurl")) {
+          fullVideo.src = streamUrl.href;
+          fullVideo.load();
+          const attempt = fullVideo.play();
+          if (attempt && typeof attempt.catch === "function") {
+            attempt.catch(function () { setPlaybackStatus("Stream ready — press play in the player.", false); });
+          }
+        } else {
+          throw new Error("This browser does not support HLS playback.");
+        }
+
+        setPlaybackStatus("HLS stream found. Loading video…", false);
+        fullVideoButton.textContent = "Reload full video";
+      } catch (error) {
+        setPlaybackStatus(error && error.message ? error.message : "Unable to load the full video.", true);
+        fullVideoButton.disabled = false;
+        fullVideoButton.textContent = "Retry full video";
+        if (!fullVideo.src && previewUrl && !fullVideo.querySelector("source")) {
+          const source = document.createElement("source");
+          source.src = previewUrl;
+          source.type = "video/mp4";
+          fullVideo.appendChild(source);
+          fullVideo.load();
+          fullVideo.muted = true;
+          fullVideo.loop = true;
+        }
+      } finally {
+        resolving = false;
+        if (fullVideoButton.textContent !== "Loading stream…") {
+          fullVideoButton.disabled = false;
+        }
+      }
+    });
+  }
+
 })();
