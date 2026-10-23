@@ -530,7 +530,10 @@
       playerFullscreen.setAttribute("aria-label", active ? "Exit fullscreen" : "Enter fullscreen");
     });
 
-    window.addEventListener("resize", positionSeekPreview);
+    window.addEventListener("resize", function () {
+      if (previewActive) renderSeekPreview(lastPreviewTime);
+      else positionSeekPreview();
+    });
     if (!resolverUrl) {
       playerStart.disabled = true;
       playerStart.setAttribute("aria-disabled", "true");
