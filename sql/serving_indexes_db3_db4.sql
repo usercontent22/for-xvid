@@ -18,7 +18,7 @@ CREATE INDEX IF NOT EXISTS videos_channel_views_idx
         url
     );
 
--- Broad search across title, channel and tags. The expression must match web/catalog.py.
+-- Full-text search over title and channel; exact tags use videos_tags_gin_idx.
 CREATE INDEX IF NOT EXISTS videos_search_fts_idx
     ON public.videos USING GIN (
         to_tsvector(
