@@ -8,6 +8,8 @@ from typing import Any, Sequence
 import psycopg
 from psycopg.rows import dict_row
 
+from web.cache import cache_get_json, cache_key, cache_set_json
+
 
 VIDEO_COLUMNS = """
 url, title, img, rating, rating_percentage, views, duration,
@@ -71,7 +73,13 @@ def preferred_video_shard(source_url: str) -> str:
 
 
 def find_video(source_url: str) -> dict[str, Any] | None:
-    """Use the expected shard's URL primary key, with one fallback for resiliency."""
+    """Use a short Redis cache, then the expected URL-primary-key shard and fallback."""
+    digest = hashlib.sha256(source_url.encode("utf-8")).hexdigest()
+    key = cache_key(f"video:{digest}")
+    cached = cache_get_json(key)
+    if isinstance(cached, dict) and cached.get("url") == source_url:
+        return cached
+
     sql = f"SELECT {VIDEO_COLUMNS} FROM public.videos WHERE url = %s LIMIT 1"
     preferred = preferred_video_shard(source_url)
     fallback = "DATABASE_URL_4" if preferred == "DATABASE_URL_3" else "DATABASE_URL_3"
@@ -89,7 +97,9 @@ def find_video(source_url: str) -> dict[str, Any] | None:
             failures += 1
             continue
         if rows:
-            return rows[0]
+            video = rows[0]
+            cache_set_json(key, video, 30 * 60)
+            return video
 
     if configured == 0 or failures == configured:
         raise DatabaseUnavailable("Video data is temporarily unavailable.")
