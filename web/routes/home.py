@@ -27,6 +27,28 @@ def index():
     featured = _videos(data.get("featured", {}))
     popular = _videos(data.get("popular", {}))
     discovery = _videos(data.get("discovery", {}))
+
+    # Prioritize the first row and avoid repeating the same video in later rows.
+    if popular:
+        primary_videos = popular
+    elif featured:
+        primary_videos = featured
+    else:
+        primary_videos = discovery
+
+    seen_urls = {
+        str(item.get("url"))
+        for item in primary_videos[:12]
+        if item.get("url")
+    }
+    featured = [item for item in featured if str(item.get("url") or "") not in seen_urls]
+    seen_urls.update(
+        str(item.get("url"))
+        for item in featured[:8]
+        if item.get("url")
+    )
+    discovery = [item for item in discovery if str(item.get("url") or "") not in seen_urls]
+
     tag_items = data.get("tag_catalog", {}).get("items", [])
     if not isinstance(tag_items, list):
         tag_items = []
@@ -36,6 +58,7 @@ def index():
         featured=featured,
         popular=popular,
         discovery=discovery,
+        primary_videos=primary_videos,
         tags=tags[:18],
         feed_date=data.get("featured", {}).get("date", ""),
         catalog_ready=catalog_configured(),
