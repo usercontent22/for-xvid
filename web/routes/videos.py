@@ -4,12 +4,29 @@ from __future__ import annotations
 from flask import Blueprint, abort, render_template
 
 from web.db import DatabaseUnavailable, find_video
+from web.catalog import list_catalog
 from web.ids import decode_token
 from web.media import decorate_video, image_variant_url
 from web.repositories.snapshots import load_homepage_data
 
 
 videos = Blueprint("videos", __name__)
+
+
+def _channel_videos(video: dict, limit: int = 4) -> list[dict]:
+    channel = str(video.get("channel_name") or "").strip()
+    if not channel:
+        return []
+    page = list_catalog(sort="views", channel=channel, limit=min(max(limit + 1, 1), 8))
+    if not page:
+        return []
+    current_url = video.get("url")
+    picks = [
+        decorate_video(item)
+        for item in page.get("items", [])
+        if item.get("url") and item.get("url") != current_url
+    ]
+    return picks[:limit]
 
 
 def _related(video: dict, limit: int = 8) -> list[dict]:
@@ -62,6 +79,7 @@ def detail(slug: str, token: str):
             "video_detail.html",
             video=None,
             related=[],
+            channel_videos=[],
             database_unavailable=True,
             page_title="Video temporarily unavailable",
         ), 503
@@ -69,6 +87,7 @@ def detail(slug: str, token: str):
         "video_detail.html",
         video=video,
         related=_related(video),
+        channel_videos=_channel_videos(video),
         database_unavailable=False,
         page_title=video.get("title") or "Video",
     )
