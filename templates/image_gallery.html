@@ -2,8 +2,7 @@
 {% block title %}{{ page_title }} — XXX World{% endblock %}
 {% block description %}Browse thumbnail frames and indexed image previews for {{ video.title }}.{% endblock %}
 {% block head_extra %}
-<meta property="og:title" content="{{ page_title }}">
-{% if video.thumbnail_url %}<meta property="og:image" content="{{ video.thumbnail_url }}">{% endif %}
+
 {% endblock %}
 {% block content %}
 <section class="listing-page image-gallery-page">
