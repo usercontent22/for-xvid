@@ -55,6 +55,16 @@ smoke-test batch; review DB3 and then rerun with `max_batches=0` to finish.
 Add `DATABASE_URL_3` as a repository Actions secret before running it. Details
 are in [VIDEO_METADATA_WORKFLOW.md](VIDEO_METADATA_WORKFLOW.md#stage-3-initial-batch-migration-into-database_url_3).
 
+
+### DB2 → DB4 migration
+
+The manual **Migrate videos from DB2 to DB4** action copies `public.videos`
+from `DATABASE_URL_2` into `DATABASE_URL_4` using the same resumable 10,000-row
+default batches, PostgreSQL `COPY` staging, and 10-tags-per-row limit as DB1 → DB3.
+Add `DATABASE_URL_4` as a repository Actions secret before running. It has a
+separate checkpoint and retries transient failures up to three attempts. See
+[VIDEO_METADATA_WORKFLOW.md](VIDEO_METADATA_WORKFLOW.md#stage-4-initial-batch-migration-into-database_url_4).
+
 ## Routes
 
 - / — snapshot-backed homepage.

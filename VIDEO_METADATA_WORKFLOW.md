@@ -149,3 +149,25 @@ not delete or update source rows.
 - This is an insert-only first pass. If a URL already exists in DB3, the
   existing destination row is retained; DB1 values are inserted only for URLs
   absent from DB3. DB2 is intentionally not part of this first migration.
+
+
+## Stage 4: initial batch migration into DATABASE_URL_4
+
+The **Migrate videos from DB2 to DB4** workflow copies only `public.videos`
+from `DATABASE_URL_2` into the existing `public.videos` table in
+`DATABASE_URL_4`. It uses an independent checkpoint name from DB1 → DB3, and
+does not modify DB2 or DB3.
+
+### Configure and run
+
+1. In **Settings → Secrets and variables → Actions**, add `DATABASE_URL_4`
+   with DB4's PostgreSQL connection string. Keep `DATABASE_URL_2` configured.
+2. Open **Actions → Migrate videos from DB2 to DB4 → Run workflow**.
+3. The default is one 10,000-row smoke-test batch. Inspect DB4 before continuing.
+4. Rerun with `max_batches=0` to copy all remaining rows. The workflow resumes
+   from its own DB4 checkpoint table, `public.video_migration_state`.
+
+The DB2 → DB4 migration uses the same keyset batches, PostgreSQL `COPY` staging,
+insert-only URL conflict handling, 10-tag maximum, and up-to-three checkpoint-safe
+attempts as the DB1 → DB3 workflow. Each migration has a distinct state key, so
+their progress does not overlap.

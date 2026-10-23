@@ -1,0 +1,77 @@
+name: Migrate videos from DB2 to DB4
+
+on:
+  workflow_dispatch:
+    inputs:
+      batch_size:
+        description: "Rows per transaction (COPY into staging, then merge)"
+        required: true
+        default: "10000"
+        type: choice
+        options:
+          - "5000"
+          - "10000"
+          - "20000"
+          - "50000"
+      max_batches:
+        description: "Safe first run: 1 batch. Use 0 to process all remaining rows."
+        required: true
+        default: "1"
+        type: string
+
+permissions:
+  contents: read
+
+# Keep this migration's checkpoint isolated from DB1-to-DB3 migration.
+concurrency:
+  group: db2-to-db4-video-migration
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    name: Copy DB2 videos to DB4
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      DATABASE_URL_2: ${{ secrets.DATABASE_URL_2 }}
+      DATABASE_URL_4: ${{ secrets.DATABASE_URL_4 }}
+      MIGRATION_BATCH_SIZE: ${{ inputs.batch_size || '10000' }}
+      MIGRATION_MAX_BATCHES: ${{ inputs.max_batches || '1' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Run unit tests
+        run: python -m unittest discover -s tests -v
+      - name: Migrate with checkpoint-safe retries
+        run: |
+          set +e
+          attempt=1
+          while [ "$attempt" -le 3 ]; do
+            echo "Migration attempt $attempt/3; previous committed batches remain checkpointed."
+            if python scripts/migrate_db2_to_db4.py \
+              --batch-size "$MIGRATION_BATCH_SIZE" \
+              --max-batches "$MIGRATION_MAX_BATCHES"; then
+              exit 0
+            else
+              status=$?
+            fi
+
+            if [ "$attempt" -eq 3 ]; then
+              echo "Migration failed after 3 attempts; rerunning later resumes from the saved checkpoint."
+              exit "$status"
+            fi
+
+            delay=$((attempt * 10))
+            echo "Attempt failed with exit code $status; retrying in $delay seconds."
+            sleep "$delay"
+            attempt=$((attempt + 1))
+          done
+          exit 1
