@@ -1,6 +1,7 @@
 import unittest
 
 from app import app
+from web.routes.browse import _cursor_page_items
 
 
 class WebSmokeTests(unittest.TestCase):
@@ -15,6 +16,24 @@ class WebSmokeTests(unittest.TestCase):
         response = client.get("/")
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"XXX World", response.data)
+
+    def test_cursor_pagination_exposes_recent_page_numbers_without_catalog_counts(self):
+        history = [""] + [f"cursor{page}" for page in range(2, 10)]
+        with app.test_request_context("/browse?section=popular"):
+            items, previous_url, next_url = _cursor_page_items(
+                "browse.listing",
+                {"section": "popular"},
+                page=10,
+                cursor="cursor10",
+                history=history,
+                next_cursor="cursor11",
+            )
+        numbered = {item["number"]: item for item in items if "number" in item}
+        self.assertTrue({1, 7, 8, 9, 10, 11}.issubset(numbered))
+        self.assertIn("cursor=cursor7", numbered[7]["url"])
+        self.assertIsNone(numbered[10]["url"])
+        self.assertIsNotNone(previous_url)
+        self.assertIsNotNone(next_url)
 
     def test_health_endpoint_does_not_expose_connection_strings(self):
         client = app.test_client()
