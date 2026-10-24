@@ -50,12 +50,7 @@
     <header class="site-header">
       <div class="header-inner">
         <a class="brand" href="/" aria-label="XXX World home">
-          {% if static_assets_base_url %}
-          <img class="brand-logo" src="{{ static_assets_base_url }}/xxxworld-logo.svg" alt="XXX World">
           <span class="brand-mark home-brand-mark" aria-hidden="true">X</span><span class="brand-wordmark home-brand-wordmark">XXX <b>World</b></span>
-          {% else %}
-          <span class="brand-mark" aria-hidden="true">X</span><span class="brand-wordmark">XXX <b>World</b></span>
-          {% endif %}
         </a>
         <form class="search-form" action="/search" method="get" role="search">
           <label class="sr-only" for="site-search">Search videos, categories, or channels</label>
@@ -80,12 +75,7 @@
     <footer class="site-footer">
       <div class="footer-main">
         <a class="brand brand-footer" href="/" aria-label="XXX World home">
-          {% if static_assets_base_url %}
-          <img class="brand-logo" src="{{ static_assets_base_url }}/xxxworld-logo.svg" alt="XXX World">
           <span class="brand-mark home-brand-mark" aria-hidden="true">X</span><span class="brand-wordmark home-brand-wordmark">XXX <b>World</b></span>
-          {% else %}
-          <span class="brand-mark" aria-hidden="true">X</span><span class="brand-wordmark">XXX <b>World</b></span>
-          {% endif %}
         </a>
         <p>Discover more. Find your favorites. Keep it simple.</p>
       </div>
