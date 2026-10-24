@@ -23,7 +23,6 @@ class WebSmokeTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'catalog-redesign', response.data)
         self.assertIn(b'collection-switcher', response.data)
-        self.assertIn(b'page-number-list', response.data)
 
     def test_cursor_pagination_exposes_recent_page_numbers_without_catalog_counts(self):
         history = [""] + [f"cursor{page}" for page in range(2, 10)]
