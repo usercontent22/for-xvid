@@ -912,3 +912,52 @@ body.home-redesign .footer-bottom { border-top-color: #ededf0; color: #85858e; }
   body.home-redesign .home-secondary { padding-top: 19px; }
   body.home-redesign .footer-bottom { flex-direction: column; gap: 6px; }
 }
+
+
+
+/* Numbered pagination: compact, keyboard-friendly and able to jump through known pages. */
+.page-number-list {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.page-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 29px;
+  height: 29px;
+  padding: 0 7px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  transition: border-color .15s, background .15s, color .15s;
+}
+.page-number:hover { border-color: var(--accent); color: var(--text); }
+.page-number.is-current {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+  cursor: default;
+}
+.page-ellipsis {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  color: var(--subtle);
+  font-size: 13px;
+}
+.pagination { flex-wrap: wrap; gap: 14px; }
+@media (max-width: 780px) {
+  .pagination { gap: 9px; }
+  .page-number-list { gap: 3px; }
+  .page-number { min-width: 27px; height: 27px; padding: 0 5px; font-size: 10px; }
+  .page-count { width: 100%; text-align: center; order: 3; }
+}
