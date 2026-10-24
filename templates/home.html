@@ -1,37 +1,51 @@
 {% extends "base.html" %}
-{% block title %}XXX World — Browse popular videos{% endblock %}
-{% block description %}Browse popular videos, find your next favorite, and explore more videos and categories on XXX World.{% endblock %}
+{% block title %}XXX World — Discover popular videos{% endblock %}
+{% block description %}Browse a curated selection of popular videos, explore featured picks, and discover categories on XXX World.{% endblock %}
 {% block content %}
 <div class="home-page">
   <section class="home-primary content-section" aria-labelledby="home-primary-heading" id="popular-videos">
     <div class="section-heading home-section-heading">
       <div>
-        {% if popular %}
-        <p class="eyebrow">POPULAR RIGHT NOW</p>
+        {% if primary_section == "popular" %}
+        <p class="eyebrow"><span class="eyebrow-dot"></span> THE COMMUNITY'S PICKS</p>
         <h1 id="home-primary-heading">Popular videos</h1>
-        <p class="section-subtitle">Start watching. Find your next favorite.</p>
-        {% elif featured %}
-        <p class="eyebrow">FEATURED PICKS</p>
+        <p class="section-subtitle">A curated feed to help you find something worth watching.</p>
+        {% elif primary_section == "featured" %}
+        <p class="eyebrow"><span class="eyebrow-dot"></span> FEATURED PICKS</p>
         <h1 id="home-primary-heading">Featured videos</h1>
-        <p class="section-subtitle">A few good places to start.</p>
+        <p class="section-subtitle">A handpicked place to start exploring.</p>
         {% else %}
-        <p class="eyebrow">FRESH IDEAS</p>
+        <p class="eyebrow"><span class="eyebrow-dot"></span> FRESH IDEAS</p>
         <h1 id="home-primary-heading">Discover videos</h1>
-        <p class="section-subtitle">Find something new to watch.</p>
+        <p class="section-subtitle">Explore the collection and find your next favorite.</p>
         {% endif %}
       </div>
-      {% if popular %}
-      <a class="button button-primary home-heading-cta" href="/browse?section=popular">More popular videos <svg class="ui-icon ui-icon-sm" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-up-right"></use></svg></a>
-      {% elif featured %}
-      <a class="button button-primary home-heading-cta" href="/browse?section=featured">More featured videos <svg class="ui-icon ui-icon-sm" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-up-right"></use></svg></a>
-      {% else %}
-      <a class="button button-primary home-heading-cta" href="/browse?section=discovery">Explore videos <svg class="ui-icon ui-icon-sm" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-up-right"></use></svg></a>
-      {% endif %}
+      <a class="home-heading-link" href="/browse?section={{ primary_section }}">
+        View collection
+        <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-right"></use></svg>
+      </a>
     </div>
+
+    {% if tags %}
+    <nav class="home-topic-rail" aria-label="Popular categories">
+      <span class="home-topic-rail-label">Explore topics</span>
+      {% for item in tags[:8] %}
+      <a class="home-topic-pill" href="/category/{{ item.tag|slugify }}--{{ item.tag|tokenize }}">{{ item.tag }}</a>
+      {% endfor %}
+      <a class="home-topic-all" href="#categories">All categories <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-right"></use></svg></a>
+    </nav>
+    {% endif %}
 
     {% if primary_videos %}
     <div class="video-grid video-grid-home">
-      {% for video in primary_videos[:12] %}{% include "_video_card.html" %}{% endfor %}
+      {% for video in primary_videos[:24] %}{% include "_video_card.html" %}{% endfor %}
+    </div>
+    <div class="home-show-more">
+      <a class="button button-primary" href="/browse?section={{ primary_section }}">
+        Show more videos
+        <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-right"></use></svg>
+      </a>
+      <p>Keep exploring the full collection.</p>
     </div>
     {% else %}
     <div class="empty-state empty-state-home">
@@ -46,11 +60,11 @@
   {% if featured and popular %}
   <section class="home-secondary content-section" aria-labelledby="featured-heading" id="featured-videos">
     <div class="section-heading home-section-heading">
-      <div><p class="eyebrow">HANDPICKED FOR VARIETY</p><h2 id="featured-heading">Featured videos</h2></div>
-      <a class="button button-quiet home-heading-cta" href="/browse?section=featured">See all featured <svg class="ui-icon ui-icon-sm" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-up-right"></use></svg></a>
+      <div><p class="eyebrow"><span class="eyebrow-dot"></span> HANDPICKED FOR VARIETY</p><h2 id="featured-heading">Featured videos</h2></div>
+      <a class="home-heading-link" href="/browse?section=featured">See all <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-right"></use></svg></a>
     </div>
     <div class="video-grid video-grid-home">
-      {% for video in featured[:8] %}{% include "_video_card.html" %}{% endfor %}
+      {% for video in featured[:12] %}{% include "_video_card.html" %}{% endfor %}
     </div>
   </section>
   {% endif %}
@@ -58,11 +72,11 @@
   {% if discovery and (popular or featured) %}
   <section class="home-secondary content-section" aria-labelledby="discovery-heading" id="discover-videos">
     <div class="section-heading home-section-heading">
-      <div><p class="eyebrow">KEEP EXPLORING</p><h2 id="discovery-heading">More to discover</h2><p class="section-subtitle">Take a different turn and find something unexpected.</p></div>
-      <a class="button button-primary home-heading-cta" href="/browse?section=discovery">Explore more videos <svg class="ui-icon ui-icon-sm" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-up-right"></use></svg></a>
+      <div><p class="eyebrow"><span class="eyebrow-dot"></span> KEEP EXPLORING</p><h2 id="discovery-heading">More to discover</h2><p class="section-subtitle">A different mix for when you want something unexpected.</p></div>
+      <a class="home-heading-link" href="/browse?section=discovery">Explore all <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-right"></use></svg></a>
     </div>
     <div class="video-grid video-grid-home">
-      {% for video in discovery[:8] %}{% include "_video_card.html" %}{% endfor %}
+      {% for video in discovery[:12] %}{% include "_video_card.html" %}{% endfor %}
     </div>
   </section>
   {% endif %}
@@ -70,8 +84,8 @@
   {% if tags %}
   <section class="home-categories topic-section" aria-labelledby="topic-heading" id="categories">
     <div class="section-heading section-heading-tight">
-      <div><p class="eyebrow">BROWSE BY INTEREST</p><h2 id="topic-heading">Find a category</h2></div>
-      <a class="button button-quiet home-heading-cta" href="/browse?section=discovery">Explore videos <svg class="ui-icon ui-icon-sm" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-up-right"></use></svg></a>
+      <div><p class="eyebrow"><span class="eyebrow-dot"></span> BROWSE BY INTEREST</p><h2 id="topic-heading">Explore categories</h2><p class="section-subtitle">Go straight to a topic you like.</p></div>
+      <a class="home-heading-link" href="/browse?section=discovery">Discover more <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-right"></use></svg></a>
     </div>
     <div class="topic-list">
       {% for item in tags %}
