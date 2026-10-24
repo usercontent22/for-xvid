@@ -1,7 +1,9 @@
 import unittest
+from unittest.mock import patch
 
 from app import app
 from web.routes.browse import _cursor_page_items
+from web.media import decorate_video
 
 
 class WebSmokeTests(unittest.TestCase):
@@ -23,6 +25,42 @@ class WebSmokeTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'catalog-redesign', response.data)
         self.assertIn(b'collection-switcher', response.data)
+
+    def test_video_detail_uses_catalog_redesign_and_related_sections(self):
+        video = decorate_video({
+            "url": "/example/video",
+            "title": "Example Video",
+            "img": "/example/0/thumbnail.jpg",
+            "channel_name": "Sample Channel",
+            "duration_seconds": 600,
+            "views": 12345,
+            "rating_percentage": 96.0,
+            "tags": ["sample", "featured"],
+        })
+        related = decorate_video({
+            "url": "/example/related",
+            "title": "Related Video",
+            "img": "/related/0/thumbnail.jpg",
+            "channel_name": "Another Channel",
+            "duration_seconds": 420,
+            "views": 4567,
+            "rating_percentage": 92.0,
+            "tags": ["sample"],
+        })
+        client = app.test_client()
+        with (
+            patch("web.routes.videos._load", return_value=video),
+            patch("web.routes.videos._related", return_value=[related]),
+            patch("web.routes.videos._channel_videos", return_value=[related]),
+        ):
+            response = client.get(video["video_href"])
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'catalog-redesign', response.data)
+        self.assertIn(b'id="detail-player"', response.data)
+        self.assertIn(b'class="sidebar-channel-picks"', response.data)
+        self.assertIn(b'class="related-section', response.data)
+        self.assertIn(b'Example Video', response.data)
 
     def test_cursor_pagination_exposes_recent_page_numbers_without_catalog_counts(self):
         history = [""] + [f"cursor{page}" for page in range(2, 10)]
