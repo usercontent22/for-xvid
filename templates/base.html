@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="{% if request.endpoint == 'home.index' %}#ffffff{% else %}#101014{% endif %}">
+  <meta name="theme-color" content="#ffffff">
   <meta name="robots" content="{{ seo.robots }}">
   <title>{% block title %}XXX World — Discover your next favorite{% endblock %}</title>
   <meta name="description" content="{{ seo.description }}">
@@ -23,10 +23,10 @@
   <link rel="icon" href="{{ static_assets_base_url }}/favicon.ico">
   <link rel="apple-touch-icon" href="{{ static_assets_base_url }}/xxxworld-icon-256.webp">
   {% endif %}
-  <link rel="stylesheet" href="/styles.css?v=7">
+  <link rel="stylesheet" href="/styles.css?v=8">
   {% block head_extra %}{% endblock %}
 </head>
-<body class="{% if request.endpoint == 'home.index' %}home-redesign{% endif %}">
+<body class="{% if request.endpoint == 'home.index' %}home-redesign{% else %}catalog-redesign{% endif %}">
   <!-- Lucide icons (ISC license), inlined so the site makes no extra icon request. -->
   <svg class="icon-sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
     <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path></symbol>
@@ -52,7 +52,7 @@
         <a class="brand" href="/" aria-label="XXX World home">
           {% if static_assets_base_url %}
           <img class="brand-logo" src="{{ static_assets_base_url }}/xxxworld-logo.svg" alt="XXX World">
-          {% if request.endpoint == 'home.index' %}<span class="brand-mark home-brand-mark" aria-hidden="true">X</span><span class="brand-wordmark home-brand-wordmark">XXX <b>World</b></span>{% endif %}
+          <span class="brand-mark home-brand-mark" aria-hidden="true">X</span><span class="brand-wordmark home-brand-wordmark">XXX <b>World</b></span>
           {% else %}
           <span class="brand-mark" aria-hidden="true">X</span><span class="brand-wordmark">XXX <b>World</b></span>
           {% endif %}
@@ -82,7 +82,7 @@
         <a class="brand brand-footer" href="/" aria-label="XXX World home">
           {% if static_assets_base_url %}
           <img class="brand-logo" src="{{ static_assets_base_url }}/xxxworld-logo.svg" alt="XXX World">
-          {% if request.endpoint == 'home.index' %}<span class="brand-mark home-brand-mark" aria-hidden="true">X</span><span class="brand-wordmark home-brand-wordmark">XXX <b>World</b></span>{% endif %}
+          <span class="brand-mark home-brand-mark" aria-hidden="true">X</span><span class="brand-wordmark home-brand-wordmark">XXX <b>World</b></span>
           {% else %}
           <span class="brand-mark" aria-hidden="true">X</span><span class="brand-wordmark">XXX <b>World</b></span>
           {% endif %}
