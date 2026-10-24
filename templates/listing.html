@@ -25,6 +25,14 @@
     <a class="button button-quiet" href="/">Back to home</a>
   </div>
 
+  {% if request.endpoint == 'browse.listing' %}
+  <nav class="collection-switcher" aria-label="Video collections">
+    <a href="/browse?section=popular" {% if request.args.get('section', 'popular') == 'popular' %}aria-current="page"{% endif %}>Popular</a>
+    <a href="/browse?section=featured" {% if request.args.get('section') == 'featured' %}aria-current="page"{% endif %}>Featured</a>
+    <a href="/browse?section=discovery" {% if request.args.get('section') == 'discovery' %}aria-current="page"{% endif %}>Discover</a>
+  </nav>
+  {% endif %}
+
   {% if videos %}
   <div class="video-grid video-grid-listing">
     {% for video in videos %}{% include "_video_card.html" %}{% endfor %}
