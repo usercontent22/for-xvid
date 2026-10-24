@@ -2,9 +2,11 @@
   <a class="video-card__media" href="{{ video.video_href }}" {% if video.preview_url %}data-preview="{{ video.preview_url }}"{% endif %} aria-label="{{ video.title }}">
     <span class="video-card__placeholder" aria-hidden="true"></span>
     {% if video.thumbnail_url %}
-    <img class="video-card__poster" src="{{ video.thumbnail_url }}" alt="{{ video.title }}" loading="lazy" decoding="async">
+    {% set card_position = loop.index if loop is defined else 99 %}
+    <img class="video-card__poster" src="{{ video.thumbnail_url }}" alt="{{ video.title }}" loading="{{ 'eager' if card_position <= 4 else 'lazy' }}" decoding="async"{% if card_position == 1 %} fetchpriority="high"{% endif %}>
     {% endif %}
     {% if video.preview_url %}<video class="video-card__preview" muted loop playsinline preload="none" aria-hidden="true"></video>{% endif %}
+    {% if video.rating_label %}<span class="video-rating" aria-label="Source rating {{ video.rating_label }}">{{ video.rating_label }}</span>{% endif %}
     <span class="video-card__play" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-play"></use></svg></span>
     {% if video.duration_label %}<span class="video-duration">{{ video.duration_label }}</span>{% endif %}
   </a>
