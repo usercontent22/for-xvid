@@ -26,7 +26,7 @@
   <link rel="stylesheet" href="/styles.css?v=6">
   {% block head_extra %}{% endblock %}
 </head>
-<body>
+<body class="{% if request.endpoint == 'home.index' %}home-redesign{% endif %}">
   <!-- Lucide icons (ISC license), inlined so the site makes no extra icon request. -->
   <svg class="icon-sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
     <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path></symbol>
@@ -41,6 +41,10 @@
     <symbol id="icon-rotate-cw" viewBox="0 0 24 24"><path d="M20 7v5h-5"></path><path d="M20.5 12A8.5 8.5 0 1 0 19 17"></path></symbol>
     <symbol id="icon-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></symbol>
     <symbol id="icon-play" viewBox="0 0 24 24"><path d="m9 5 10 7-10 7z"></path></symbol>
+<symbol id="icon-home" viewBox="0 0 24 24"><path d="m3 10 9-7 9 7"></path><path d="M5 9v12h14V9"></path><path d="M9 21v-7h6v7"></path></symbol>
+<symbol id="icon-flame" viewBox="0 0 24 24"><path d="M12 22c4.4 0 7-3 7-7.2 0-3-1.6-5.2-4.2-7.8.1 2.7-1.1 3.8-2.1 4.2C12.7 7.2 10 4 7.4 2.5 8 7.4 5 9.4 5 14.5 5 19 7.8 22 12 22Z"></path><path d="M12 22c-1.8-1.1-2.2-2.6-1.6-4.4.4-1.1 1.1-1.7 1.6-2.6 1.8 1.8 2.3 4.1 0 7Z"></path></symbol>
+<symbol id="icon-star" viewBox="0 0 24 24"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z"></path></symbol>
+<symbol id="icon-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="m15.7 8.3-2.1 5.3-5.3 2.1 2.1-5.3 5.3-2.1Z"></path></symbol>
   </svg>
   <div class="site-shell">
     <header class="site-header">
@@ -48,21 +52,23 @@
         <a class="brand" href="/" aria-label="XXX World home">
           {% if static_assets_base_url %}
           <img class="brand-logo" src="{{ static_assets_base_url }}/xxxworld-logo.svg" alt="XXX World">
+          {% if request.endpoint == 'home.index' %}<span class="brand-mark home-brand-mark" aria-hidden="true">X</span><span class="brand-wordmark home-brand-wordmark">XXX <b>World</b></span>{% endif %}
           {% else %}
           <span class="brand-mark" aria-hidden="true">X</span><span class="brand-wordmark">XXX <b>World</b></span>
           {% endif %}
         </a>
         <form class="search-form" action="/search" method="get" role="search">
           <label class="sr-only" for="site-search">Search videos, categories, or channels</label>
-          <input id="site-search" type="search" name="q" maxlength="120" placeholder="Search videos, tags, channels…" value="{{ request.args.get('q', '') }}">
+          <input id="site-search" type="search" name="q" maxlength="120" placeholder="Search videos" value="{{ request.args.get('q', '') }}">
           <button type="submit" aria-label="Search"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-search"></use></svg></button>
         </form>
         <button class="mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="primary-nav">Menu</button>
         <nav class="primary-nav" id="primary-nav" aria-label="Main navigation">
-          <a href="/" {% if request.path == '/' %}aria-current="page"{% endif %}>Home</a>
-          <a href="/browse?section=popular" {% if request.path == '/browse' and request.args.get('section', 'popular') == 'popular' %}aria-current="page"{% endif %}>Popular</a>
-          <a class="nav-explore" href="/browse?section=discovery" {% if request.path == '/browse' and request.args.get('section') == 'discovery' %}aria-current="page"{% endif %}>Discover</a>
-          <a href="/#categories">Categories</a>
+          <a href="/" {% if request.path == '/' %}aria-current="page"{% endif %}><svg class="nav-icon ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-home"></use></svg><span>Home</span></a>
+          <a href="/browse?section=popular" {% if request.path == '/browse' and request.args.get('section', 'popular') == 'popular' %}aria-current="page"{% endif %}><svg class="nav-icon ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-flame"></use></svg><span>Popular</span></a>
+          <a href="/browse?section=featured" {% if request.path == '/browse' and request.args.get('section') == 'featured' %}aria-current="page"{% endif %}><svg class="nav-icon ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-star"></use></svg><span>Featured</span></a>
+          <a href="/browse?section=discovery" {% if request.path == '/browse' and request.args.get('section') == 'discovery' %}aria-current="page"{% endif %}><svg class="nav-icon ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-compass"></use></svg><span>Discover</span></a>
+          <a href="/#categories" {% if request.path.startswith('/category/') %}aria-current="page"{% endif %}><svg class="nav-icon ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-hash"></use></svg><span>Categories</span></a>
         </nav>
       </div>
     </header>
