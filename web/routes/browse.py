@@ -53,19 +53,104 @@ def _filter_items(items: list[dict], *, search: str = "", channel: str = "", tag
     return result
 
 
-def _page_url(endpoint: str, values: dict, cursor: str | None, history: list[str], next_cursor: str | None):
-    result = {"previous_url": None, "next_url": None}
-    if history:
-        previous_cursor = history[-1] or None
-        result["previous_url"] = url_for(
-            endpoint, **values, cursor=previous_cursor, history=encode_history(history[:-1])
-        )
+def _snapshot_page_items(endpoint: str, values: dict, page: int, pages: int) -> list[dict]:
+    """Build first/current/last page links from the small, already-loaded snapshot pool."""
+    visible = {1, pages}
+    visible.update(range(max(2, page - 3), min(pages, page + 3) + 1))
+    numbers = sorted(number for number in visible if 1 <= number <= pages)
+    items: list[dict] = []
+    previous_number = None
+    for number in numbers:
+        if previous_number is not None and number - previous_number > 1:
+            items.append({"ellipsis": True})
+        items.append({
+            "number": number,
+            "current": number == page,
+            "url": None if number == page else url_for(endpoint, **values, page=number),
+        })
+        previous_number = number
+    return items
+
+
+def _cursor_page_items(
+    endpoint: str,
+    values: dict,
+    page: int,
+    cursor: str | None,
+    history: list[str],
+    next_cursor: str | None,
+) -> tuple[list[dict], str | None, str | None]:
+    """Build numbered links only from known keyset cursors; never COUNT the catalog.
+
+    The page-one link needs no cursor. Nearby earlier pages use cursors already carried
+    in the URL's history. The next page uses the cursor returned by the existing query.
+    """
+    page = max(1, int(page))
+    first_known_page = max(1, page - len(history))
+    first_window_page = max(2, page - 3)
+    visible = {1}
+    visible.update(range(first_window_page, page + 1))
     if next_cursor:
-        next_history = history + [cursor or ""]
-        result["next_url"] = url_for(
-            endpoint, **values, cursor=next_cursor, history=encode_history(next_history)
+        visible.add(page + 1)
+
+    items: list[dict] = []
+    previous_number = None
+    for number in sorted(visible):
+        if previous_number is not None and number - previous_number > 1:
+            items.append({"ellipsis": True})
+
+        number_cursor = None
+        number_history: list[str] = []
+        if number == page:
+            number_cursor = cursor
+            number_history = history
+        elif number == 1:
+            number_cursor = None
+        elif number == page + 1 and next_cursor:
+            number_cursor = next_cursor
+            number_history = history + [cursor or ""]
+        else:
+            history_index = number - first_known_page
+            if 0 <= history_index < len(history):
+                number_cursor = history[history_index] or None
+                number_history = history[:history_index]
+            else:
+                # A cursor was not retained for this old page; don't create a misleading link.
+                previous_number = number
+                continue
+
+        items.append({
+            "number": number,
+            "current": number == page,
+            "url": None if number == page else url_for(
+                endpoint,
+                **values,
+                page=number,
+                cursor=number_cursor,
+                history=encode_history(number_history),
+            ),
+        })
+        previous_number = number
+
+    previous_url = None
+    if history and page > 1:
+        previous_url = url_for(
+            endpoint,
+            **values,
+            page=page - 1,
+            cursor=history[-1] or None,
+            history=encode_history(history[:-1]),
         )
-    return result
+    next_url = None
+    if next_cursor:
+        next_url = url_for(
+            endpoint,
+            **values,
+            page=page + 1,
+            cursor=next_cursor,
+            history=encode_history(history + [cursor or ""]),
+        )
+    return items, previous_url, next_url
 
 
 def _seo_for_collection(
@@ -145,6 +230,7 @@ def _fallback_page(
         tag_items=[],
         page=page,
         pages=pages,
+        pagination_items=_snapshot_page_items(endpoint, values, page, pages),
         previous_url=url_for(endpoint, **values, page=page - 1) if page > 1 else None,
         next_url=url_for(endpoint, **values, page=page + 1) if page < pages else None,
         empty=not decorated,
@@ -176,7 +262,11 @@ def _catalog_page(
     if result is None:
         return None
     decorated = [decorate_video(item) for item in result["items"]]
-    nav = _page_url(endpoint, values, cursor, history, result.get("next_cursor"))
+    page = request.args.get("page", default=len(history) + 1, type=int) or (len(history) + 1)
+    page = max(1, page)
+    pagination_items, previous_url, next_url = _cursor_page_items(
+        endpoint, values, page, cursor, history, result.get("next_cursor")
+    )
     avatar_url = next((item.get("thumbnail_url") for item in decorated if item.get("thumbnail_url")), "")
     seo = _seo_for_collection(
         title=title,
@@ -196,9 +286,10 @@ def _catalog_page(
         is_channel=is_channel,
         channel_avatar_url=avatar_url,
         tag_items=[],
-        previous_url=nav["previous_url"],
-        next_url=nav["next_url"],
-        page=None,
+        previous_url=previous_url,
+        next_url=next_url,
+        pagination_items=pagination_items,
+        page=page,
         pages=None,
         empty=not decorated,
     )

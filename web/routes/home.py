@@ -34,23 +34,20 @@ def index():
     popular = _videos(data.get("popular", {}))
     discovery = _videos(data.get("discovery", {}))
 
-    # Prioritize the first row and avoid repeating the same video in later rows.
-    if popular:
-        primary_videos = popular
-    elif featured:
-        primary_videos = featured
-    else:
-        primary_videos = discovery
+    # Prioritize the main feed and avoid repeats across the visible homepage sections.
+    primary_section = "popular" if popular else ("featured" if featured else "discovery")
+    primary_videos = {"popular": popular, "featured": featured, "discovery": discovery}[primary_section]
+    primary_title = {"popular": "Popular videos", "featured": "Featured videos", "discovery": "Discover videos"}[primary_section]
 
     seen_urls = {
         str(item.get("url"))
-        for item in primary_videos[:12]
+        for item in primary_videos[:24]
         if item.get("url")
     }
     featured = [item for item in featured if str(item.get("url") or "") not in seen_urls]
     seen_urls.update(
         str(item.get("url"))
-        for item in featured[:8]
+        for item in featured[:12]
         if item.get("url")
     )
     discovery = [item for item in discovery if str(item.get("url") or "") not in seen_urls]
@@ -59,16 +56,15 @@ def index():
     if not isinstance(tag_items, list):
         tag_items = []
     tags = [item for item in tag_items if isinstance(item, dict) and item.get("tag")]
-    primary_title = "Popular videos" if popular else ("Featured videos" if featured else "Discover videos")
     primary_list = video_item_list_schema(
-        primary_videos[:12],
+        primary_videos[:24],
         primary_title,
         "/",
-        fragment="popular-videos-list",
+        fragment="primary-videos-list",
     )
     additional_schema = [primary_list]
 
-    visible_featured = featured[:8] if featured and popular else []
+    visible_featured = featured[:12] if featured and popular else []
     if visible_featured:
         additional_schema.append(
             video_item_list_schema(
@@ -79,7 +75,7 @@ def index():
             )
         )
 
-    visible_discovery = discovery[:8] if discovery and (popular or featured) else []
+    visible_discovery = discovery[:12] if discovery and (popular or featured) else []
     if visible_discovery:
         additional_schema.append(
             video_item_list_schema(
@@ -113,7 +109,7 @@ def index():
         description="Browse popular videos, discover new picks, and explore video categories on XXX World.",
         canonical_path="/",
         page_type="CollectionPage",
-        main_entity={"@id": absolute_url("/") + "#popular-videos-list"},
+        main_entity={"@id": absolute_url("/") + "#primary-videos-list"},
         additional_nodes=additional_schema,
     )
     return render_template(
@@ -121,6 +117,8 @@ def index():
         seo=seo,
         featured=featured,
         popular=popular,
+        primary_section=primary_section,
+        primary_title=primary_title,
         discovery=discovery,
         primary_videos=primary_videos,
         tags=visible_tags,

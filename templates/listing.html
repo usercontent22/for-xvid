@@ -25,15 +25,32 @@
     <a class="button button-quiet" href="/">Back to home</a>
   </div>
 
+  {% if request.endpoint == 'browse.listing' %}
+  <nav class="collection-switcher" aria-label="Video collections">
+    <a href="/browse?section=popular" {% if request.args.get('section', 'popular') == 'popular' %}aria-current="page"{% endif %}>Popular</a>
+    <a href="/browse?section=featured" {% if request.args.get('section') == 'featured' %}aria-current="page"{% endif %}>Featured</a>
+    <a href="/browse?section=discovery" {% if request.args.get('section') == 'discovery' %}aria-current="page"{% endif %}>Discover</a>
+  </nav>
+  {% endif %}
+
   {% if videos %}
   <div class="video-grid video-grid-listing">
     {% for video in videos %}{% include "_video_card.html" %}{% endfor %}
   </div>
+  {% if pagination_items %}
   <nav class="pagination" aria-label="Collection pagination">
     {% if previous_url %}<a class="page-arrow" href="{{ previous_url }}"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-left"></use></svg><span>Previous</span></a>{% else %}<span class="page-arrow is-disabled"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-left"></use></svg><span>Previous</span></span>{% endif %}
-    {% if page and pages %}<span class="page-count">Page <b>{{ page }}</b> of <b>{{ pages }}</b></span>{% endif %}
+    <div class="page-number-list" aria-label="Page numbers">
+      {% for item in pagination_items %}
+        {% if item.ellipsis %}<span class="page-ellipsis" aria-hidden="true">…</span>
+        {% elif item.current %}<span class="page-number is-current" aria-current="page">{{ item.number }}</span>
+        {% else %}<a class="page-number" href="{{ item.url }}" aria-label="Go to page {{ item.number }}">{{ item.number }}</a>{% endif %}
+      {% endfor %}
+    </div>
+    {% if page %}<span class="page-count">Page <b>{{ page }}</b>{% if pages %} of <b>{{ pages }}</b>{% endif %}</span>{% endif %}
     {% if next_url %}<a class="page-arrow page-arrow-next" href="{{ next_url }}"><span>Next</span> <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-right"></use></svg></a>{% else %}<span class="page-arrow page-arrow-next is-disabled"><span>Next</span> <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-right"></use></svg></span>{% endif %}
   </nav>
+  {% endif %}
   {% else %}
   <div class="empty-state">
     <span class="empty-icon" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-search"></use></svg></span>
