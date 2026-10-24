@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#101014">
+  <meta name="theme-color" content="{% if request.endpoint == 'home.index' %}#ffffff{% else %}#101014{% endif %}">
   <meta name="robots" content="{{ seo.robots }}">
   <title>{% block title %}XXX World — Discover your next favorite{% endblock %}</title>
   <meta name="description" content="{{ seo.description }}">
@@ -82,6 +82,7 @@
         <a class="brand brand-footer" href="/" aria-label="XXX World home">
           {% if static_assets_base_url %}
           <img class="brand-logo" src="{{ static_assets_base_url }}/xxxworld-logo.svg" alt="XXX World">
+          {% if request.endpoint == 'home.index' %}<span class="brand-mark home-brand-mark" aria-hidden="true">X</span><span class="brand-wordmark home-brand-wordmark">XXX <b>World</b></span>{% endif %}
           {% else %}
           <span class="brand-mark" aria-hidden="true">X</span><span class="brand-wordmark">XXX <b>World</b></span>
           {% endif %}
