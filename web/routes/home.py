@@ -60,7 +60,7 @@ def index():
         primary_videos[:24],
         primary_title,
         "/",
-        fragment="popular-videos-list",
+        fragment="primary-videos-list",
     )
     additional_schema = [primary_list]
 
@@ -109,7 +109,7 @@ def index():
         description="Browse popular videos, discover new picks, and explore video categories on XXX World.",
         canonical_path="/",
         page_type="CollectionPage",
-        main_entity={"@id": absolute_url("/") + "#popular-videos-list"},
+        main_entity={"@id": absolute_url("/") + "#primary-videos-list"},
         additional_nodes=additional_schema,
     )
     return render_template(
