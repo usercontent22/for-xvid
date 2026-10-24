@@ -37,9 +37,11 @@
     {% endif %}
 
     {% if primary_videos %}
+    {% set homepage_priority_feed = true %}
     <div class="video-grid video-grid-home">
       {% for video in primary_videos[:24] %}{% include "_video_card.html" %}{% endfor %}
     </div>
+    {% set homepage_priority_feed = false %}
     <div class="home-show-more">
       <a class="button button-primary" href="/browse?section={{ primary_section }}">
         Show more videos
