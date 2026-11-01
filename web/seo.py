@@ -128,6 +128,7 @@ def video_object(video: dict, page_path: str | None = None) -> dict:
             f"Watch {title} on {SITE_NAME}.",
         ),
         "inLanguage": "en",
+        "isFamilyFriendly": False,
         "isPartOf": {"@id": site_origin() + "/#website"},
         "mainEntityOfPage": {"@id": video_url + "#webpage"},
     }
@@ -151,6 +152,7 @@ def video_object(video: dict, page_path: str | None = None) -> dict:
         keywords = [_clean_text(tag) for tag in tags if _clean_text(tag)]
         if keywords:
             item["keywords"] = keywords
+            item["genre"] = keywords[:12]
     # Include real playback URLs only if a future query supplies them explicitly.
     for field in ("content_url", "embed_url"):
         value = video.get(field)
@@ -252,6 +254,16 @@ def build_page_seo(
         "@id": origin + "/#organization",
         "name": SITE_NAME,
         "url": origin + "/",
+        "description": (
+            "An adults-only video discovery catalogue for browsing popular and featured videos, "
+            "exploring channels and categories, and finding related picks."
+        ),
+        "knowsAbout": [
+            "Video discovery",
+            "Video categories",
+            "Video channels",
+            "Related video recommendations",
+        ],
     }
     if logo_base:
         organization["logo"] = {
@@ -265,6 +277,10 @@ def build_page_seo(
         "@id": origin + "/#website",
         "url": origin + "/",
         "name": SITE_NAME,
+        "description": (
+            "Discover popular and featured videos, browse channels and categories, "
+            "and explore related video picks on XXX World."
+        ),
         "inLanguage": "en",
         "publisher": {"@id": origin + "/#organization"},
         "potentialAction": {
