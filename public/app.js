@@ -388,6 +388,7 @@
   const playerShell = document.getElementById("detail-player");
   const fullVideo = document.getElementById("detail-hls-player");
   const playerStart = document.getElementById("player-start");
+  const playerStartOver = document.getElementById("player-start-over");
   const playerOverlay = document.getElementById("player-overlay");
   const playerOverlayHeading = document.getElementById("player-overlay-heading");
   const playerOverlayStatus = document.getElementById("player-overlay-status");
@@ -416,6 +417,25 @@
     const sourcePath = fullVideo.getAttribute("data-source-path") || "";
     const resolverUrl = fullVideo.getAttribute("data-resolver-url") || "";
     const mosaicUrl = fullVideo.getAttribute("data-mosaic-url") || "";
+    const videoHistoryMetadata = {
+      id: fullVideo.getAttribute("data-video-id") || sourcePath,
+      href: fullVideo.getAttribute("data-video-href") || "",
+      title: fullVideo.getAttribute("data-video-title") || fullVideo.getAttribute("aria-label") || "Video",
+      thumbnail: fullVideo.getAttribute("data-thumbnail-url") || fullVideo.poster || "",
+      channel: fullVideo.getAttribute("data-channel-name") || "",
+      duration: Number(fullVideo.getAttribute("data-duration-seconds")) || 0
+    };
+    const savedWatchRecord = readWatchHistory().find(function (record) {
+      return record.id === videoHistoryMetadata.id;
+    }) || null;
+    let resumePosition = savedWatchRecord && !savedWatchRecord.completed
+      ? Number(savedWatchRecord.position) || 0
+      : 0;
+    let resumeApplied = resumePosition < 5;
+    let watchedSecondsThisSession = 0;
+    let lastSavedWatchSeconds = 0;
+    let historyRecordExists = Boolean(savedWatchRecord);
+    let lastObservedMediaTime = null;
     let hlsInstance = null;
     let resolving = false;
     let streamReady = false;
@@ -444,6 +464,91 @@
         return String(hours) + ":" + String(minutes).padStart(2, "0") + ":" + String(remainder).padStart(2, "0");
       }
       return String(minutes).padStart(2, "0") + ":" + String(remainder).padStart(2, "0");
+    }
+
+    async function applySavedResumePosition() {
+      if (resumeApplied || resumePosition < 5) return;
+      if (fullVideo.readyState < 1) {
+        await new Promise(function (resolve) {
+          let settled = false;
+          const finish = function () {
+            if (settled) return;
+            settled = true;
+            fullVideo.removeEventListener("loadedmetadata", finish);
+            fullVideo.removeEventListener("durationchange", finish);
+            window.clearTimeout(timeoutId);
+            resolve();
+          };
+          const timeoutId = window.setTimeout(finish, 6000);
+          fullVideo.addEventListener("loadedmetadata", finish, {once: true});
+          fullVideo.addEventListener("durationchange", finish, {once: true});
+        });
+      }
+      if (resumeApplied) return;
+      const duration = durationValue();
+      const target = duration > 0
+        ? Math.min(resumePosition, Math.max(0, duration - 2))
+        : resumePosition;
+      try {
+        fullVideo.currentTime = target;
+        resumeApplied = true;
+      } catch (_error) {
+        // Some native HLS implementations expose duration a little later.
+      }
+    }
+
+    function persistCurrentWatchProgress(completed) {
+      if (!videoHistoryMetadata.id || !videoHistoryMetadata.href || isWatchHistoryPaused()) return false;
+      if (!historyRecordExists && watchedSecondsThisSession < 10 && !completed) return false;
+      if (historyRecordExists && watchedSecondsThisSession < 5 && !completed) return false;
+
+      const actualDuration = durationValue() || videoHistoryMetadata.duration;
+      const position = completed && actualDuration > 0
+        ? actualDuration
+        : Math.max(0, Number(fullVideo.currentTime) || 0);
+      const saved = upsertWatchHistory({
+        id: videoHistoryMetadata.id,
+        href: videoHistoryMetadata.href,
+        title: videoHistoryMetadata.title,
+        thumbnail: videoHistoryMetadata.thumbnail,
+        channel: videoHistoryMetadata.channel,
+        position: position,
+        duration: actualDuration,
+        updatedAt: Date.now(),
+        completed: Boolean(completed)
+      });
+      if (saved) {
+        historyRecordExists = true;
+        lastSavedWatchSeconds = watchedSecondsThisSession;
+      }
+      return saved;
+    }
+
+    function observeWatchProgress(force) {
+      const current = Number(fullVideo.currentTime);
+      if (!Number.isFinite(current)) return;
+      if (!force && (fullVideo.paused || fullVideo.seeking)) {
+        lastObservedMediaTime = current;
+        return;
+      }
+      if (lastObservedMediaTime !== null) {
+        const delta = current - lastObservedMediaTime;
+        // Ignore large jumps caused by seeking; count only ordinary playback movement.
+        if (delta > 0 && delta <= 5) watchedSecondsThisSession += delta;
+      }
+      lastObservedMediaTime = current;
+
+      if (watchedSecondsThisSession >= 10 &&
+          (!historyRecordExists || watchedSecondsThisSession - lastSavedWatchSeconds >= 15)) {
+        persistCurrentWatchProgress(false);
+      }
+    }
+
+    if (resumePosition >= 5) {
+      playerOverlayHeading.textContent = "Continue watching?";
+      playerOverlayStatus.textContent = "Resume from " + formatPlayerTime(resumePosition) + ".";
+      playerStart.setAttribute("aria-label", "Resume video from " + formatPlayerTime(resumePosition));
+      if (playerStartOver) playerStartOver.hidden = false;
     }
 
     function setLoadingMeter(progressPercent) {
@@ -718,6 +823,7 @@
         try { fullVideo.currentTime = 0; } catch (_error) {}
       }
       try {
+        await applySavedResumePosition();
         fullVideo.muted = false;
         await fullVideo.play();
       } catch (_error) {
@@ -837,6 +943,22 @@
       }
     });
 
+    if (playerStartOver) {
+      playerStartOver.addEventListener("click", function () {
+        resumePosition = 0;
+        resumeApplied = true;
+        playerStartOver.hidden = true;
+        playerOverlayHeading.textContent = "Play from the beginning";
+        playerOverlayStatus.textContent = "Starting this video from the beginning.";
+        if (streamReady) {
+          try { fullVideo.currentTime = 0; } catch (_error) {}
+          playReadyStream();
+        } else {
+          startPlayback();
+        }
+      });
+    }
+
     playerToggle.addEventListener("click", function () {
       if (fullVideo.paused || fullVideo.ended) {
         playReadyStream();
@@ -875,6 +997,8 @@
 
     fullVideo.addEventListener("playing", function () {
       resolving = false;
+      lastObservedMediaTime = Number(fullVideo.currentTime) || 0;
+      if (playerStartOver) playerStartOver.hidden = true;
       hideLoadingMeter();
       playerOverlay.hidden = true;
       playerControls.hidden = false;
@@ -883,6 +1007,8 @@
     });
 
     fullVideo.addEventListener("pause", function () {
+      observeWatchProgress(true);
+      persistCurrentWatchProgress(false);
       updatePlayIcon();
       if (streamReady && !fullVideo.ended && !resolving) {
         setOverlay("Video paused", "Press play to continue.", "ready");
@@ -890,14 +1016,34 @@
     });
 
     fullVideo.addEventListener("ended", function () {
+      observeWatchProgress(true);
+      persistCurrentWatchProgress(true);
       updatePlayIcon();
       setOverlay("Watch again", "Replay this video from the beginning.", "ready");
     });
 
     fullVideo.addEventListener("timeupdate", updateProgress);
+    fullVideo.addEventListener("timeupdate", function () { observeWatchProgress(false); });
+    fullVideo.addEventListener("seeking", function () {
+      lastObservedMediaTime = null;
+    });
+    fullVideo.addEventListener("seeked", function () {
+      lastObservedMediaTime = Number(fullVideo.currentTime) || 0;
+    });
     fullVideo.addEventListener("progress", updateProgress);
     fullVideo.addEventListener("durationchange", updateProgress);
     fullVideo.addEventListener("loadedmetadata", updateProgress);
+    fullVideo.addEventListener("loadedmetadata", applySavedResumePosition);
+    window.addEventListener("pagehide", function () {
+      observeWatchProgress(true);
+      persistCurrentWatchProgress(false);
+    });
+    document.addEventListener("visibilitychange", function () {
+      if (document.visibilityState === "hidden") {
+        observeWatchProgress(true);
+        persistCurrentWatchProgress(false);
+      }
+    });
 
     playerProgress.addEventListener("pointerenter", function (event) {
       if (event.pointerType !== "touch") showSeekPreviewFromPointer(event);
