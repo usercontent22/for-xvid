@@ -1,6 +1,321 @@
 (function () {
   "use strict";
 
+
+  // Anonymous watch history stays on the visitor's device. No API, SQL or Redis calls.
+  const WATCH_HISTORY_KEY = "xxxworld:watch-history:v1";
+  const WATCH_HISTORY_PAUSED_KEY = "xxxworld:watch-history-paused:v1";
+  const WATCH_HISTORY_LIMIT = 150;
+
+  function watchHistorySafeHref(value) {
+    if (typeof value !== "string" || value.length > 4096 || !value.startsWith("/video/") || value.startsWith("//")) return "";
+    try {
+      const url = new URL(value, window.location.origin);
+      if (url.origin !== window.location.origin || url.username || url.password) return "";
+      return url.pathname + url.search;
+    } catch (_error) {
+      return "";
+    }
+  }
+
+  function watchHistorySafeImage(value) {
+    if (typeof value !== "string" || value.length > 4096) return "";
+    try {
+      const url = new URL(value, window.location.origin);
+      if (url.protocol !== "https:" && url.protocol !== "http:") return "";
+      if (url.username || url.password) return "";
+      return url.href;
+    } catch (_error) {
+      return "";
+    }
+  }
+
+  function normalizeWatchHistoryRecord(value) {
+    if (!value || typeof value !== "object") return null;
+    const id = typeof value.id === "string" ? value.id.trim().slice(0, 2048) : "";
+    const href = watchHistorySafeHref(value.href);
+    const title = typeof value.title === "string" ? value.title.trim().slice(0, 280) : "";
+    const updatedAt = Number(value.updatedAt);
+    const duration = Number(value.duration);
+    const position = Number(value.position);
+    if (!id || !href || !title || !Number.isFinite(updatedAt) || updatedAt <= 0) return null;
+    const safeDuration = Number.isFinite(duration) && duration > 0 ? Math.min(duration, 172800) : 0;
+    const safePosition = Number.isFinite(position) && position > 0
+      ? Math.min(position, safeDuration || 172800)
+      : 0;
+    return {
+      id: id,
+      href: href,
+      title: title,
+      thumbnail: watchHistorySafeImage(value.thumbnail),
+      channel: typeof value.channel === "string" ? value.channel.trim().slice(0, 160) : "",
+      position: safePosition,
+      duration: safeDuration,
+      updatedAt: Math.min(updatedAt, Date.now() + 86400000),
+      completed: value.completed === true
+    };
+  }
+
+  function readWatchHistory() {
+    try {
+      const raw = window.localStorage.getItem(WATCH_HISTORY_KEY);
+      if (!raw) return [];
+      const values = JSON.parse(raw);
+      if (!Array.isArray(values)) return [];
+      return values
+        .map(normalizeWatchHistoryRecord)
+        .filter(Boolean)
+        .sort(function (a, b) { return b.updatedAt - a.updatedAt; })
+        .slice(0, WATCH_HISTORY_LIMIT);
+    } catch (_error) {
+      return [];
+    }
+  }
+
+  function writeWatchHistory(records) {
+    try {
+      const safeRecords = records
+        .map(normalizeWatchHistoryRecord)
+        .filter(Boolean)
+        .sort(function (a, b) { return b.updatedAt - a.updatedAt; })
+        .slice(0, WATCH_HISTORY_LIMIT);
+      window.localStorage.setItem(WATCH_HISTORY_KEY, JSON.stringify(safeRecords));
+      return true;
+    } catch (_error) {
+      // Storage may be disabled or full. Playback must never fail because of history.
+      return false;
+    }
+  }
+
+  function isWatchHistoryPaused() {
+    try {
+      return window.localStorage.getItem(WATCH_HISTORY_PAUSED_KEY) === "1";
+    } catch (_error) {
+      return false;
+    }
+  }
+
+  function setWatchHistoryPaused(paused) {
+    try {
+      if (paused) window.localStorage.setItem(WATCH_HISTORY_PAUSED_KEY, "1");
+      else window.localStorage.removeItem(WATCH_HISTORY_PAUSED_KEY);
+    } catch (_error) {
+      return false;
+    }
+    window.dispatchEvent(new Event("xxxworld:watch-history-changed"));
+    return true;
+  }
+
+  function upsertWatchHistory(record) {
+    if (isWatchHistoryPaused()) return false;
+    const safeRecord = normalizeWatchHistoryRecord(record);
+    if (!safeRecord) return false;
+    const records = readWatchHistory().filter(function (item) { return item.id !== safeRecord.id; });
+    records.unshift(safeRecord);
+    const saved = writeWatchHistory(records);
+    if (saved) window.dispatchEvent(new Event("xxxworld:watch-history-changed"));
+    return saved;
+  }
+
+  function removeWatchHistory(videoId) {
+    const remaining = readWatchHistory().filter(function (item) { return item.id !== videoId; });
+    writeWatchHistory(remaining);
+    window.dispatchEvent(new Event("xxxworld:watch-history-changed"));
+  }
+
+  function clearWatchHistory() {
+    try {
+      window.localStorage.removeItem(WATCH_HISTORY_KEY);
+    } catch (_error) {
+      return false;
+    }
+    window.dispatchEvent(new Event("xxxworld:watch-history-changed"));
+    return true;
+  }
+
+  function formatWatchDuration(seconds) {
+    const total = Number.isFinite(Number(seconds)) ? Math.max(0, Math.floor(Number(seconds))) : 0;
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    const remainder = total % 60;
+    if (hours) return String(hours) + ":" + String(minutes).padStart(2, "0") + ":" + String(remainder).padStart(2, "0");
+    return String(minutes) + ":" + String(remainder).padStart(2, "0");
+  }
+
+  function watchHistoryRelativeTime(timestamp) {
+    const elapsed = Math.max(0, Date.now() - timestamp);
+    const minutes = Math.floor(elapsed / 60000);
+    if (minutes < 1) return "Just now";
+    if (minutes < 60) return minutes + " min ago";
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return hours + (hours === 1 ? " hour ago" : " hours ago");
+    const days = Math.floor(hours / 24);
+    if (days === 1) return "Yesterday";
+    if (days < 30) return days + " days ago";
+    return new Date(timestamp).toLocaleDateString();
+  }
+
+  function createWatchHistoryCard(record, options) {
+    const settings = options || {};
+    const article = document.createElement("article");
+    article.className = "video-card history-video-card";
+
+    const mediaLink = document.createElement("a");
+    mediaLink.className = "video-card__media";
+    mediaLink.href = record.href;
+    mediaLink.setAttribute("aria-label", record.title);
+
+    if (record.thumbnail) {
+      const image = document.createElement("img");
+      image.className = "video-card__poster";
+      image.src = record.thumbnail;
+      image.alt = "";
+      image.loading = "lazy";
+      image.decoding = "async";
+      mediaLink.appendChild(image);
+    } else {
+      const placeholder = document.createElement("span");
+      placeholder.className = "video-card__placeholder";
+      placeholder.setAttribute("aria-hidden", "true");
+      mediaLink.appendChild(placeholder);
+    }
+
+    if (record.duration > 0) {
+      const duration = document.createElement("span");
+      duration.className = "video-duration";
+      duration.textContent = formatWatchDuration(record.duration);
+      mediaLink.appendChild(duration);
+    }
+    const percent = record.duration > 0
+      ? Math.max(0, Math.min(100, Math.round((record.position / record.duration) * 100)))
+      : 0;
+    if (percent > 0 && !record.completed) {
+      const progress = document.createElement("span");
+      progress.className = "history-media-progress";
+      progress.setAttribute("aria-label", percent + "% watched");
+      const fill = document.createElement("span");
+      fill.style.width = percent + "%";
+      progress.appendChild(fill);
+      mediaLink.appendChild(progress);
+    }
+    article.appendChild(mediaLink);
+
+    const body = document.createElement("div");
+    body.className = "video-card__body";
+    const title = document.createElement("a");
+    title.className = "video-card__title";
+    title.href = record.href;
+    title.textContent = record.title;
+    body.appendChild(title);
+
+    const meta = document.createElement("div");
+    meta.className = "video-card__meta";
+    if (record.channel) {
+      const channel = document.createElement("span");
+      channel.className = "video-channel";
+      channel.textContent = record.channel;
+      meta.appendChild(channel);
+    }
+    const when = document.createElement("span");
+    when.textContent = watchHistoryRelativeTime(record.updatedAt);
+    meta.appendChild(when);
+    body.appendChild(meta);
+
+    const status = document.createElement("p");
+    status.className = "history-card-status";
+    if (record.completed) {
+      status.textContent = "Completed · Watch again";
+    } else if (record.duration > 0) {
+      status.textContent = "Continue at " + formatWatchDuration(record.position) +
+        " of " + formatWatchDuration(record.duration);
+    } else {
+      status.textContent = "Continue watching";
+    }
+    body.appendChild(status);
+
+    if (settings.allowRemove) {
+      const remove = document.createElement("button");
+      remove.className = "history-card-remove";
+      remove.type = "button";
+      remove.textContent = "Remove";
+      remove.setAttribute("aria-label", "Remove " + record.title + " from watch history");
+      remove.addEventListener("click", function () { removeWatchHistory(record.id); });
+      body.appendChild(remove);
+    }
+    article.appendChild(body);
+    return article;
+  }
+
+  function renderContinueWatching() {
+    const section = document.getElementById("continue-watching-section");
+    const list = document.getElementById("continue-watching-list");
+    if (!section || !list) return;
+    const records = readWatchHistory().filter(function (record) {
+      return !record.completed && (!record.duration || record.position < record.duration - 15);
+    }).slice(0, 8);
+    list.replaceChildren();
+    records.forEach(function (record) {
+      list.appendChild(createWatchHistoryCard(record, {allowRemove: false}));
+    });
+    section.hidden = records.length === 0;
+  }
+
+  function renderWatchHistoryPage() {
+    const list = document.getElementById("watch-history-list");
+    if (!list) return;
+    const empty = document.getElementById("watch-history-empty");
+    const emptyHeading = document.getElementById("watch-history-empty-heading");
+    const emptyCopy = document.getElementById("watch-history-empty-copy");
+    const count = document.getElementById("watch-history-count");
+    const pauseButton = document.getElementById("watch-history-pause");
+    const clearButton = document.getElementById("watch-history-clear");
+    const records = readWatchHistory();
+
+    list.replaceChildren();
+    records.forEach(function (record) {
+      list.appendChild(createWatchHistoryCard(record, {allowRemove: true}));
+    });
+    list.hidden = records.length === 0;
+    if (empty) empty.hidden = records.length > 0;
+    if (count) count.textContent = records.length + (records.length === 1 ? " saved video" : " saved videos") +
+      " · Stored in this browser";
+    if (pauseButton) {
+      pauseButton.textContent = isWatchHistoryPaused() ? "Resume history" : "Pause history";
+      pauseButton.setAttribute("aria-pressed", String(isWatchHistoryPaused()));
+    }
+    if (clearButton) clearButton.disabled = records.length === 0;
+    if (emptyHeading && isWatchHistoryPaused()) emptyHeading.textContent = "Watch history is paused";
+    if (emptyCopy && isWatchHistoryPaused()) emptyCopy.textContent = "New videos will not be added until you resume history.";
+    if (emptyHeading && !isWatchHistoryPaused()) emptyHeading.textContent = "No videos in your history yet";
+    if (emptyCopy && !isWatchHistoryPaused()) emptyCopy.textContent = "Videos you watch for at least 10 seconds will appear here. Your history stays in this browser.";
+  }
+
+  renderContinueWatching();
+  renderWatchHistoryPage();
+  window.addEventListener("xxxworld:watch-history-changed", function () {
+    renderContinueWatching();
+    renderWatchHistoryPage();
+  });
+  window.addEventListener("storage", function (event) {
+    if (event.key === WATCH_HISTORY_KEY || event.key === WATCH_HISTORY_PAUSED_KEY) {
+      renderContinueWatching();
+      renderWatchHistoryPage();
+    }
+  });
+
+  const pauseHistoryButton = document.getElementById("watch-history-pause");
+  if (pauseHistoryButton) {
+    pauseHistoryButton.addEventListener("click", function () {
+      setWatchHistoryPaused(!isWatchHistoryPaused());
+    });
+  }
+  const clearHistoryButton = document.getElementById("watch-history-clear");
+  if (clearHistoryButton) {
+    clearHistoryButton.addEventListener("click", function () {
+      if (window.confirm("Clear all watch history saved in this browser?")) clearWatchHistory();
+    });
+  }
+
   const menuButton = document.querySelector(".mobile-menu-toggle");
   const nav = document.querySelector(".primary-nav");
   if (menuButton && nav) {
