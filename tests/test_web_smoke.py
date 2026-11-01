@@ -18,6 +18,19 @@ class WebSmokeTests(unittest.TestCase):
         response = client.get("/")
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"XXX World", response.data)
+        self.assertIn(b"Video discovery", response.data)
+        self.assertIn(b"adults-only video discovery catalogue", response.data)
+        self.assertIn(b"Popular videos", response.data)
+
+    def test_player_progress_meter_tracks_real_first_segment_bytes(self):
+        client = app.test_client()
+        response = client.get("/app.js")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"player-loading-meter", response.data)
+        self.assertIn(b"context.type === \"media-fragment\"", response.data)
+        self.assertIn(b"stats.total", response.data)
+        self.assertIn(b"stats.loaded", response.data)
+        self.assertNotIn(b"FRAG_LOAD_PROGRESS", response.data)
 
     def test_collection_pages_use_catalog_redesign_shell(self):
         client = app.test_client()
@@ -60,6 +73,10 @@ class WebSmokeTests(unittest.TestCase):
         self.assertIn(b'id="detail-player"', response.data)
         self.assertIn(b'class="sidebar-channel-picks"', response.data)
         self.assertIn(b'class="related-section', response.data)
+        self.assertIn(b'player-loading-meter', response.data)
+        self.assertIn(b'Video discovery', response.data)
+        self.assertIn(b'Sample Channel', response.data)
+        self.assertIn(b'categories: sample, featured', response.data)
         self.assertIn(b'Example Video', response.data)
 
     def test_cursor_pagination_exposes_recent_page_numbers_without_catalog_counts(self):
