@@ -21,6 +21,7 @@ class WebSmokeTests(unittest.TestCase):
         self.assertIn(b"Video discovery", response.data)
         self.assertIn(b"adults-only video discovery catalogue", response.data)
         self.assertIn(b"Popular videos", response.data)
+        self.assertIn(b'id="continue-watching-section"', response.data)
 
     def test_player_progress_meter_tracks_real_first_segment_bytes(self):
         client = app.test_client()
@@ -31,6 +32,29 @@ class WebSmokeTests(unittest.TestCase):
         self.assertIn(b"stats.total", response.data)
         self.assertIn(b"stats.loaded", response.data)
         self.assertNotIn(b"FRAG_LOAD_PROGRESS", response.data)
+
+    def test_watch_history_page_is_private_noindex_and_needs_no_database(self):
+        client = app.test_client()
+        response = client.get("/history")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'Watch history', response.data)
+        self.assertIn(b'watch-history-list', response.data)
+        self.assertIn(b'Pause history', response.data)
+        self.assertIn(b'Clear history', response.data)
+        self.assertIn(b'noindex,follow', response.data)
+        self.assertIn("private", response.headers.get("Cache-Control", ""))
+        self.assertIn("no-store", response.headers.get("Cache-Control", ""))
+
+    def test_watch_history_is_bounded_and_browser_local(self):
+        client = app.test_client()
+        response = client.get("/app.js")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'WATCH_HISTORY_LIMIT = 150', response.data)
+        self.assertIn(b'localStorage.setItem(WATCH_HISTORY_KEY', response.data)
+        self.assertIn(b'watchedSecondsThisSession >= 10', response.data)
+        self.assertIn(b'watchedSecondsThisSession - lastSavedWatchSeconds >= 15', response.data)
+        self.assertIn(b'window.addEventListener("pagehide"', response.data)
+        self.assertNotIn(b'fetch("/history', response.data)
 
     def test_collection_pages_use_catalog_redesign_shell(self):
         client = app.test_client()
@@ -71,6 +95,8 @@ class WebSmokeTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'catalog-redesign', response.data)
         self.assertIn(b'id="detail-player"', response.data)
+        self.assertIn(b'data-video-id="/example/video"', response.data)
+        self.assertIn(b'id="player-start-over"', response.data)
         self.assertIn(b'class="sidebar-channel-picks"', response.data)
         self.assertIn(b'class="related-section', response.data)
         self.assertIn(b'player-loading-meter', response.data)
