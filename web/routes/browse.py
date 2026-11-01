@@ -406,3 +406,16 @@ def channel(slug: str, token: str):
         page=request.args.get("page", default=1, type=int) or 1,
         is_channel=True,
     )
+
+
+
+@browse.get("/history")
+def watch_history():
+    """Serve a browser-local history shell; no visitor activity reaches the server."""
+    seo = build_page_seo(
+        title="Watch history — XXX World",
+        description="Review and resume videos saved privately in this browser on XXX World.",
+        canonical_path="/history",
+        noindex=True,
+    )
+    return render_template("history.html", seo=seo)

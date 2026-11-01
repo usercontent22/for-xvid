@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Watch history — XXX World{% endblock %}
+{% block description %}Review and resume videos saved privately in this browser on XXX World.{% endblock %}
+{% block content %}
+<section class="history-page content-section" id="watch-history-page" aria-labelledby="watch-history-heading">
+  <div class="breadcrumbs"><a href="/">Home</a><span aria-hidden="true">/</span><span>Watch history</span></div>
+  <div class="section-heading home-section-heading history-heading">
+    <div>
+      <p class="eyebrow"><span class="eyebrow-dot"></span> YOUR RECENT ACTIVITY</p>
+      <h1 id="watch-history-heading">Watch history</h1>
+      <p class="section-subtitle">Your watched videos are saved on this browser only. Nothing is sent to our catalogue database.</p>
+    </div>
+    <a class="home-heading-link" href="/">Back to videos <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-right"></use></svg></a>
+  </div>
+
+  <div class="history-toolbar">
+    <p class="history-count" id="watch-history-count" aria-live="polite">Loading your history…</p>
+    <div class="history-actions">
+      <button class="button button-quiet" id="watch-history-pause" type="button">Pause history</button>
+      <button class="button button-quiet history-clear-button" id="watch-history-clear" type="button" disabled>Clear history</button>
+    </div>
+  </div>
+
+  <div class="empty-state history-empty" id="watch-history-empty" hidden>
+    <span class="empty-icon" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24"><use href="#icon-clock"></use></svg></span>
+    <h2 id="watch-history-empty-heading">No videos in your history yet</h2>
+    <p id="watch-history-empty-copy">Videos you watch for at least a few seconds will appear here. Your history stays in this browser.</p>
+    <a class="button button-primary" href="/browse?section=popular">Explore popular videos</a>
+  </div>
+
+  <div class="video-grid video-grid-listing history-video-grid" id="watch-history-list" aria-label="Recently watched videos"></div>
+  <p class="history-privacy-note"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-info"></use></svg> History is stored locally in this browser. Clearing site data or using a different browser/device may remove or not show these entries.</p>
+</section>
+{% endblock %}

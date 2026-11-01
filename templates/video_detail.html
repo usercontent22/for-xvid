@@ -26,6 +26,12 @@
           preload="none"
           poster="{{ video.thumbnail_url }}"
           data-source-path="{{ video.url }}"
+          data-video-id="{{ video.url }}"
+          data-video-href="{{ video.video_href }}"
+          data-video-title="{{ video.title }}"
+          data-thumbnail-url="{{ video.thumbnail_url }}"
+          data-channel-name="{{ video.channel_name }}"
+          data-duration-seconds="{{ video.duration_seconds or 0 }}"
           data-resolver-url="{{ hls_resolver_url }}"
           data-preview-src="{{ video.preview_url }}"
           data-mosaic-url="{{ video.mosaic_url }}"
@@ -43,6 +49,7 @@
           </button>
           <p class="player-overlay-heading" id="player-overlay-heading">Play full video</p>
           <p class="player-overlay-status" id="player-overlay-status" role="status" aria-live="polite">Ready when you are.</p>
+          <button class="player-start-over" id="player-start-over" type="button" hidden>Start from beginning</button>
           <div class="player-loading-meter is-indeterminate" id="player-loading-meter" role="progressbar" aria-label="Loading first stream segment" aria-valuemin="0" aria-valuemax="100" hidden>
             <span id="player-loading-meter-fill"></span>
           </div>

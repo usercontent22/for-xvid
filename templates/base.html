@@ -23,7 +23,7 @@
   <link rel="icon" href="{{ static_assets_base_url }}/favicon.ico">
   <link rel="apple-touch-icon" href="{{ static_assets_base_url }}/xxxworld-icon-256.webp">
   {% endif %}
-  <link rel="stylesheet" href="/styles.css?v=9">
+  <link rel="stylesheet" href="/styles.css?v=10">
   {% block head_extra %}{% endblock %}
 </head>
 <body class="{% if request.endpoint == 'home.index' %}home-redesign{% else %}catalog-redesign{% endif %}">
@@ -68,6 +68,7 @@
           <a href="/browse?section=featured" {% if request.path == '/browse' and request.args.get('section') == 'featured' %}aria-current="page"{% endif %}><svg class="nav-icon ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-star"></use></svg><span>Featured</span></a>
           <a href="/browse?section=discovery" {% if request.path == '/browse' and request.args.get('section') == 'discovery' %}aria-current="page"{% endif %}><svg class="nav-icon ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-compass"></use></svg><span>Discover</span></a>
           <a href="/#categories" {% if request.path.startswith('/category/') %}aria-current="page"{% endif %}><svg class="nav-icon ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-hash"></use></svg><span>Categories</span></a>
+          <a href="/history" {% if request.path == '/history' %}aria-current="page"{% endif %}><svg class="nav-icon ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-clock"></use></svg><span>History</span></a>
         </nav>
       </div>
     </header>
@@ -98,6 +99,7 @@
           <a href="/#categories">Video categories</a>
           <a href="/browse?section=popular">Popular picks</a>
           <a href="/browse?section=featured">Featured picks</a>
+          <a href="/history">Watch history</a>
         </nav>
       </div>
       <div class="footer-bottom">
@@ -118,6 +120,6 @@
       <p class="age-gate-note">Your choice is stored in this browser. This notice is not identity or legal-age verification.</p>
     </div>
   </section>
-  <script src="/app.js?v=3" defer></script>
+  <script src="/app.js?v=4" defer></script>
 </body>
 </html>
