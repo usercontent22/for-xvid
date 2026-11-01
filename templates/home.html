@@ -36,6 +36,18 @@
     </nav>
     {% endif %}
 
+  <section class="home-secondary content-section continue-watching-section" id="continue-watching-section" aria-labelledby="continue-watching-heading" hidden>
+    <div class="section-heading home-section-heading">
+      <div>
+        <p class="eyebrow"><span class="eyebrow-dot"></span> PICK UP WHERE YOU LEFT OFF</p>
+        <h2 id="continue-watching-heading">Continue watching</h2>
+        <p class="section-subtitle">Your recent videos, saved in this browser.</p>
+      </div>
+      <a class="home-heading-link" href="/history">View watch history <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-right"></use></svg></a>
+    </div>
+    <div class="video-grid video-grid-home history-video-grid" id="continue-watching-list"></div>
+  </section>
+
     {% if primary_videos %}
     {% set homepage_priority_feed = true %}
     <div class="video-grid video-grid-home">
@@ -59,17 +71,7 @@
     {% endif %}
   </section>
 
-  <section class="home-secondary content-section continue-watching-section" id="continue-watching-section" aria-labelledby="continue-watching-heading" hidden>
-    <div class="section-heading home-section-heading">
-      <div>
-        <p class="eyebrow"><span class="eyebrow-dot"></span> PICK UP WHERE YOU LEFT OFF</p>
-        <h2 id="continue-watching-heading">Continue watching</h2>
-        <p class="section-subtitle">Your recent videos, saved in this browser.</p>
-      </div>
-      <a class="home-heading-link" href="/history">View watch history <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-right"></use></svg></a>
-    </div>
-    <div class="video-grid video-grid-home history-video-grid" id="continue-watching-list"></div>
-  </section>
+
 
   {% if featured and popular %}
   <section class="home-secondary content-section" aria-labelledby="featured-heading" id="featured-videos">
