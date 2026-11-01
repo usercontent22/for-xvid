@@ -76,6 +76,9 @@
   const playerOverlay = document.getElementById("player-overlay");
   const playerOverlayHeading = document.getElementById("player-overlay-heading");
   const playerOverlayStatus = document.getElementById("player-overlay-status");
+  const playerLoadingMeter = document.getElementById("player-loading-meter");
+  const playerLoadingMeterFill = document.getElementById("player-loading-meter-fill");
+  const playerLoadingPercent = document.getElementById("player-loading-percent");
   const playerControls = document.getElementById("player-controls");
   const playerToggle = document.getElementById("player-toggle");
   const playerMute = document.getElementById("player-mute");
@@ -106,6 +109,9 @@
     let lastPointerX = null;
     let previewActive = false;
     let previewImagePromise = null;
+    let startupFragmentTracked = false;
+    let startupFragmentCompleted = false;
+    let lastStartupPercent = -1;
     const mosaicPromises = new Map();
 
     function durationValue() {
@@ -125,7 +131,39 @@
       return String(minutes).padStart(2, "0") + ":" + String(remainder).padStart(2, "0");
     }
 
-    function setOverlay(heading, message, state) {
+    function setLoadingMeter(progressPercent) {
+      if (!playerLoadingMeter || !playerLoadingMeterFill || !playerLoadingPercent) return;
+      const hasPercentage = typeof progressPercent === "number" && Number.isFinite(progressPercent);
+      playerLoadingMeter.hidden = false;
+      playerLoadingMeter.classList.toggle("is-indeterminate", !hasPercentage);
+
+      if (hasPercentage) {
+        const percentage = Math.max(0, Math.min(100, Math.round(progressPercent)));
+        playerLoadingMeter.setAttribute("aria-valuenow", String(percentage));
+        playerLoadingMeterFill.style.width = String(percentage) + "%";
+        playerLoadingPercent.textContent = String(percentage) + "% of first segment";
+        playerLoadingPercent.hidden = false;
+      } else {
+        playerLoadingMeter.removeAttribute("aria-valuenow");
+        playerLoadingMeterFill.style.width = "";
+        playerLoadingPercent.textContent = "";
+        playerLoadingPercent.hidden = true;
+      }
+    }
+
+    function hideLoadingMeter() {
+      if (!playerLoadingMeter) return;
+      playerLoadingMeter.hidden = true;
+      playerLoadingMeter.classList.remove("is-indeterminate");
+      playerLoadingMeter.removeAttribute("aria-valuenow");
+      if (playerLoadingMeterFill) playerLoadingMeterFill.style.width = "";
+      if (playerLoadingPercent) {
+        playerLoadingPercent.textContent = "";
+        playerLoadingPercent.hidden = true;
+      }
+    }
+
+    function setOverlay(heading, message, state, progressPercent) {
       playerOverlayHeading.textContent = heading;
       playerOverlayStatus.textContent = message;
       playerOverlay.classList.toggle("is-loading", state === "loading");
@@ -138,7 +176,45 @@
           ? '<span class="player-spinner" aria-hidden="true"></span>'
           : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.8c0-.8.9-1.3 1.6-.8l9.1 6.2a1 1 0 0 1 0 1.6l-9.1 6.2a1 1 0 0 1-1.6-.8z"></path></svg>';
       }
+      if (state === "loading") setLoadingMeter(progressPercent);
+      else hideLoadingMeter();
       playerOverlay.hidden = false;
+    }
+
+    function updateStartupFragmentProgress(stats) {
+      if (!resolving || startupFragmentCompleted) return;
+      const total = Number(stats && stats.total);
+      const loaded = Number(stats && stats.loaded);
+      if (total > 0 && Number.isFinite(loaded)) {
+        const percentage = Math.max(0, Math.min(99, Math.floor((loaded / total) * 100)));
+        if (percentage !== lastStartupPercent) {
+          lastStartupPercent = percentage;
+          setOverlay(
+            "Loading your video",
+            "Downloading the first video segment…",
+            "loading",
+            percentage
+          );
+        }
+      } else {
+        setOverlay(
+          "Loading your video",
+          "Downloading the first video segment…",
+          "loading"
+        );
+      }
+    }
+
+    function markStartupFragmentLoaded() {
+      if (!resolving || startupFragmentCompleted) return;
+      startupFragmentCompleted = true;
+      lastStartupPercent = 100;
+      setOverlay(
+        "Preparing playback",
+        "The first video segment is downloaded. Getting the player ready…",
+        "loading",
+        100
+      );
     }
 
     function updatePlayIcon() {
@@ -300,6 +376,9 @@
     }
 
     function clearStream() {
+      startupFragmentTracked = false;
+      startupFragmentCompleted = false;
+      lastStartupPercent = -1;
       if (hlsInstance) {
         hlsInstance.destroy();
         hlsInstance = null;
@@ -327,7 +406,8 @@
         fullVideo.muted = false;
         await fullVideo.play();
       } catch (_error) {
-        setOverlay("Your video is ready", "Press play to start watching.", "ready");
+        resolving = false;
+        setOverlay("Your video is ready", "Playback is ready. Press play to start watching.", "ready");
         updatePlayIcon();
       }
     }
@@ -341,7 +421,7 @@
       }
 
       resolving = true;
-      setOverlay("Getting your video ready", "Connecting to the video source…", "loading");
+      setOverlay("Finding your video stream", "Contacting the video source…", "loading");
 
       try {
         const endpoint = new URL(resolverUrl);
@@ -360,6 +440,7 @@
           throw new Error("unavailable");
         }
 
+        setOverlay("Loading video playlist", "Fetching the HLS playlist…", "loading");
         clearStream();
         fullVideo.loop = false;
         fullVideo.muted = false;
@@ -367,20 +448,52 @@
         fullVideo.controls = false;
 
         if (window.Hls && window.Hls.isSupported()) {
-          hlsInstance = new window.Hls({
+          const hlsConfig = {
             enableWorker: true,
             lowLatencyMode: false,
             backBufferLength: 30
-          });
+          };
+          const defaultFragmentLoader = window.Hls.DefaultConfig && window.Hls.DefaultConfig.loader;
+          if (typeof defaultFragmentLoader === "function") {
+            hlsConfig.fLoader = class StartupProgressFragmentLoader extends defaultFragmentLoader {
+              load(context, config, callbacks) {
+                const tracksStartupFragment = context &&
+                  context.type === "media-fragment" &&
+                  !startupFragmentTracked;
+                if (!tracksStartupFragment) {
+                  return super.load(context, config, callbacks);
+                }
+
+                startupFragmentTracked = true;
+                const onProgress = callbacks.onProgress;
+                const onSuccess = callbacks.onSuccess;
+                const trackedCallbacks = Object.assign({}, callbacks);
+                trackedCallbacks.onProgress = function (stats, currentContext, data, networkDetails) {
+                  updateStartupFragmentProgress(stats);
+                  if (typeof onProgress === "function") {
+                    return onProgress.call(callbacks, stats, currentContext, data, networkDetails);
+                  }
+                };
+                trackedCallbacks.onSuccess = function (response, stats, currentContext, networkDetails) {
+                  markStartupFragmentLoaded();
+                  if (typeof onSuccess === "function") {
+                    return onSuccess.call(callbacks, response, stats, currentContext, networkDetails);
+                  }
+                };
+                return super.load(context, config, trackedCallbacks);
+              }
+            };
+          }
+
+          hlsInstance = new window.Hls(hlsConfig);
           hlsInstance.on(window.Hls.Events.ERROR, function (_event, info) {
             if (info && info.fatal) failPlayback();
           });
           hlsInstance.on(window.Hls.Events.MANIFEST_PARSED, function () {
             streamReady = true;
-            resolving = false;
             playerControls.hidden = false;
             updateProgress();
-            setOverlay("Your video is ready", "Starting playback…", "ready");
+            setOverlay("Buffering your video", "Preparing the first video segment…", "loading");
             playReadyStream();
           });
           hlsInstance.loadSource(streamUrl.href);
@@ -389,10 +502,9 @@
           fullVideo.src = streamUrl.href;
           fullVideo.load();
           streamReady = true;
-          resolving = false;
           playerControls.hidden = false;
           updateProgress();
-          setOverlay("Your video is ready", "Starting playback…", "ready");
+          setOverlay("Buffering your video", "Waiting for the first video segment…", "loading");
           playReadyStream();
         } else {
           throw new Error("unsupported");
@@ -424,8 +536,31 @@
       else fullVideo.pause();
     });
 
+    fullVideo.addEventListener("canplay", function () {
+      if (resolving && streamReady) {
+        setOverlay(
+          "Starting playback",
+          "The video is ready. Starting playback…",
+          "loading",
+          startupFragmentCompleted ? 100 : undefined
+        );
+      }
+    });
+
+    fullVideo.addEventListener("waiting", function () {
+      if (resolving && streamReady) {
+        setOverlay(
+          "Buffering your video",
+          "Waiting for enough video data to start…",
+          "loading",
+          startupFragmentCompleted ? 100 : undefined
+        );
+      }
+    });
+
     fullVideo.addEventListener("playing", function () {
       resolving = false;
+      hideLoadingMeter();
       playerOverlay.hidden = true;
       playerControls.hidden = false;
       updatePlayIcon();
