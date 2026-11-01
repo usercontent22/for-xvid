@@ -23,7 +23,7 @@
   <link rel="icon" href="{{ static_assets_base_url }}/favicon.ico">
   <link rel="apple-touch-icon" href="{{ static_assets_base_url }}/xxxworld-icon-256.webp">
   {% endif %}
-  <link rel="stylesheet" href="/styles.css?v=8">
+  <link rel="stylesheet" href="/styles.css?v=9">
   {% block head_extra %}{% endblock %}
 </head>
 <body class="{% if request.endpoint == 'home.index' %}home-redesign{% else %}catalog-redesign{% endif %}">
@@ -50,7 +50,11 @@
     <header class="site-header">
       <div class="header-inner">
         <a class="brand" href="/" aria-label="XXX World home">
-          <span class="brand-mark home-brand-mark" aria-hidden="true">X</span><span class="brand-wordmark home-brand-wordmark">XXX <b>World</b></span>
+          <span class="brand-mark home-brand-mark" aria-hidden="true">X</span>
+          <span class="brand-copy">
+            <span class="brand-wordmark home-brand-wordmark">XXX <b>World</b></span>
+            <span class="brand-tagline">Video discovery · categories · channels</span>
+          </span>
         </a>
         <form class="search-form" action="/search" method="get" role="search">
           <label class="sr-only" for="site-search">Search videos, categories, or channels</label>
@@ -73,15 +77,32 @@
     </main>
 
     <footer class="site-footer">
-      <div class="footer-main">
-        <a class="brand brand-footer" href="/" aria-label="XXX World home">
-          <span class="brand-mark home-brand-mark" aria-hidden="true">X</span><span class="brand-wordmark home-brand-wordmark">XXX <b>World</b></span>
-        </a>
-        <p>Discover more. Find your favorites. Keep it simple.</p>
+      <div class="footer-content">
+        <div class="footer-about">
+          <a class="brand brand-footer" href="/" aria-label="XXX World home">
+            <span class="brand-mark home-brand-mark" aria-hidden="true">X</span>
+            <span class="brand-copy">
+              <span class="brand-wordmark home-brand-wordmark">XXX <b>World</b></span>
+            </span>
+          </a>
+          <p>XXX World is an adults-only video discovery catalogue. Browse popular and featured videos, explore channels and categories, and find related picks from each watch page.</p>
+        </div>
+        <nav class="footer-link-group" aria-label="Explore video collections">
+          <h2>Explore videos</h2>
+          <a href="/browse?section=popular">Popular videos</a>
+          <a href="/browse?section=featured">Featured videos</a>
+          <a href="/browse?section=discovery">Discover videos</a>
+        </nav>
+        <nav class="footer-link-group" aria-label="Browse video topics">
+          <h2>Browse topics</h2>
+          <a href="/#categories">Video categories</a>
+          <a href="/browse?section=popular">Popular picks</a>
+          <a href="/browse?section=featured">Featured picks</a>
+        </nav>
       </div>
       <div class="footer-bottom">
-        <span>© {{ current_year }} XXX World</span>
-        <span>Built for discovery · Designed to load lightly</span>
+        <span>© {{ current_year }} XXX World · Adults only (18+)</span>
+        <span>Video discovery · Channels · Categories</span>
       </div>
     </footer>
   </div>
@@ -97,6 +118,6 @@
       <p class="age-gate-note">Your choice is stored in this browser. This notice is not identity or legal-age verification.</p>
     </div>
   </section>
-  <script src="/app.js?v=2" defer></script>
+  <script src="/app.js?v=3" defer></script>
 </body>
 </html>

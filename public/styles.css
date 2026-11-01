@@ -1327,3 +1327,121 @@ body.catalog-redesign .related-section .video-grid { grid-template-columns: repe
   body.catalog-redesign .frame-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
   body.catalog-redesign .footer-bottom { flex-direction: column; gap: 6px; }
 }
+
+
+
+/* Compact brand context, genuinely useful footer navigation and HLS startup progress. */
+.brand-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+}
+.brand-tagline {
+  color: #8b8b95;
+  font-size: 8px;
+  font-weight: 550;
+  line-height: 1.15;
+  letter-spacing: .08px;
+  white-space: nowrap;
+}
+body.home-redesign .brand-tagline,
+body.catalog-redesign .brand-tagline { color: #898993; }
+
+.site-footer { padding-top: 25px; }
+.footer-content {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(130px, .8fr) minmax(130px, .8fr);
+  gap: 35px;
+  padding: 0 0 24px;
+}
+.footer-about { max-width: 560px; }
+.footer-about .brand { margin-bottom: 11px; }
+.footer-about p {
+  max-width: 520px;
+  margin: 0;
+  color: #777780;
+  font-size: 11px;
+  line-height: 1.75;
+}
+.footer-link-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 9px;
+  padding-top: 4px;
+}
+.footer-link-group h2 {
+  margin: 0 0 3px;
+  color: #34343b;
+  font-size: 11px;
+  font-weight: 780;
+}
+.footer-link-group a {
+  color: #777780;
+  font-size: 10px;
+  line-height: 1.4;
+  transition: color .15s ease;
+}
+.footer-link-group a:hover { color: #c7432a; }
+body.home-redesign .footer-bottom,
+body.catalog-redesign .footer-bottom {
+  border-top-color: #ededf0;
+  color: #85858e;
+}
+body.home-redesign .footer-about p,
+body.catalog-redesign .footer-about p { color: #777780; }
+
+.player-loading-meter {
+  position: relative;
+  display: block;
+  width: min(260px, 74%);
+  height: 4px;
+  margin: 7px 0 0;
+  overflow: hidden;
+  border-radius: 99px;
+  background: rgba(255,255,255,.25);
+  box-shadow: 0 1px 5px rgba(0,0,0,.22);
+}
+.player-loading-meter[hidden] { display: none; }
+.player-loading-meter > span {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #f477b5, #c1a0ff);
+  transition: width .16s ease-out;
+}
+.player-loading-meter.is-indeterminate > span {
+  width: 34%;
+  animation: player-loading-sweep 1.15s ease-in-out infinite;
+}
+@keyframes player-loading-sweep {
+  0% { transform: translateX(-110%); }
+  100% { transform: translateX(320%); }
+}
+.player-loading-percent {
+  margin: 1px 0 0;
+  color: rgba(255,255,255,.8);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.35;
+  text-shadow: 0 1px 6px rgba(0,0,0,.6);
+}
+.player-loading-percent[hidden] { display: none; }
+
+@media (max-width: 780px) {
+  .brand-tagline { font-size: 7px; }
+  .footer-content { grid-template-columns: minmax(0, 1fr) minmax(110px, .7fr); gap: 22px 18px; }
+  .footer-about { grid-column: 1 / -1; }
+  .footer-link-group { padding-top: 0; }
+}
+@media (max-width: 480px) {
+  .footer-content { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 18px 13px; }
+  .footer-about { grid-column: 1 / -1; }
+  .footer-about p { font-size: 10px; }
+  .footer-link-group h2 { font-size: 10px; }
+  .footer-link-group a { font-size: 9px; }
+  .brand-tagline { font-size: 7px; }
+}

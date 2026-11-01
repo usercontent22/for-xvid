@@ -98,7 +98,18 @@ def detail(slug: str, token: str):
 
     page_path = video["video_href"]
     title = video.get("title") or "Video"
-    description = f"Watch {title}, explore its categories and channel, and find related videos on XXX World."
+    description_parts = [f"Watch {title} on XXX World."]
+    channel_name = str(video.get("channel_name") or "").strip()
+    if channel_name:
+        description_parts.append(f"Explore more videos from {channel_name}.")
+    tags = [
+        str(tag).strip()
+        for tag in (video.get("tags") or [])
+        if str(tag).strip()
+    ]
+    if tags:
+        description_parts.append(f"Browse related categories: {', '.join(tags[:5])}.")
+    description = " ".join(description_parts)[:320]
     video["seo_description"] = description
     structured_video = video_object(video, page_path)
     video_id = absolute_url(page_path) + "#video"

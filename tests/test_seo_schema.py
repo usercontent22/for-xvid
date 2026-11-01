@@ -36,6 +36,9 @@ class StructuredDataTests(unittest.TestCase):
         self.assertEqual(seo["robots"], "index,follow,max-image-preview:large")
         self.assertIn("Organization", types)
         self.assertIn("WebSite", types)
+        self.assertIn("adults-only video discovery catalogue", types["Organization"]["description"])
+        self.assertIn("popular and featured videos", types["WebSite"]["description"])
+        self.assertGreaterEqual(len(types["Organization"]["knowsAbout"]), 3)
         self.assertEqual(types["WebSite"]["potentialAction"]["@type"], "SearchAction")
         self.assertIn("BreadcrumbList", types)
         self.assertEqual(types["CollectionPage"]["url"], seo["canonical_url"])
@@ -56,6 +59,8 @@ class StructuredDataTests(unittest.TestCase):
         self.assertEqual(schema["thumbnailUrl"], ["https://thumb.example.test/example.jpg"])
         self.assertEqual(schema["duration"], "PT1H2M3S")
         self.assertEqual(schema["interactionStatistic"]["userInteractionCount"], 1800)
+        self.assertFalse(schema["isFamilyFriendly"])
+        self.assertEqual(schema["genre"], ["comedy", "short film"])
         # Never invent source upload dates: the live database query doesn't expose one yet.
         self.assertNotIn("uploadDate", schema)
         self.assertNotIn("contentUrl", schema)
