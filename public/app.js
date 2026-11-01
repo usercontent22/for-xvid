@@ -500,7 +500,8 @@
     function persistCurrentWatchProgress(completed) {
       if (!videoHistoryMetadata.id || !videoHistoryMetadata.href || isWatchHistoryPaused()) return false;
       if (!historyRecordExists && watchedSecondsThisSession < 10 && !completed) return false;
-      if (historyRecordExists && watchedSecondsThisSession < 5 && !completed) return false;
+      if (historyRecordExists &&
+          watchedSecondsThisSession - lastSavedWatchSeconds < 3 && !completed) return false;
 
       const actualDuration = durationValue() || videoHistoryMetadata.duration;
       const position = completed && actualDuration > 0
@@ -527,6 +528,10 @@
     function observeWatchProgress(force) {
       const current = Number(fullVideo.currentTime);
       if (!Number.isFinite(current)) return;
+      if (isWatchHistoryPaused()) {
+        lastObservedMediaTime = current;
+        return;
+      }
       if (!force && (fullVideo.paused || fullVideo.seeking)) {
         lastObservedMediaTime = current;
         return;
@@ -538,7 +543,7 @@
       }
       lastObservedMediaTime = current;
 
-      if (watchedSecondsThisSession >= 10 &&
+      if (!force && watchedSecondsThisSession >= 10 &&
           (!historyRecordExists || watchedSecondsThisSession - lastSavedWatchSeconds >= 15)) {
         persistCurrentWatchProgress(false);
       }
