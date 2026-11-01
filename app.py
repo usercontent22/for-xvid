@@ -89,7 +89,9 @@ def response_headers(response):
     response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
 
     if request.method == "GET" and request.path != "/healthz":
-        if request.path == "/":
+        if request.path == "/history":
+            response.headers.setdefault("Cache-Control", "private, no-store")
+        elif request.path == "/":
             response.headers.setdefault("Cache-Control", "public, max-age=0, s-maxage=120, stale-while-revalidate=600")
         elif request.path.startswith("/images/"):
             response.headers.setdefault("Cache-Control", "public, max-age=0, s-maxage=86400, stale-while-revalidate=604800")
