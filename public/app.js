@@ -191,7 +191,7 @@
           lastStartupPercent = percentage;
           setOverlay(
             "Loading your video",
-            "Downloading the first video segment…",
+            "Downloading the first stream segment…",
             "loading",
             percentage
           );
@@ -199,7 +199,7 @@
       } else {
         setOverlay(
           "Loading your video",
-          "Downloading the first video segment…",
+          "Downloading the first stream segment…",
           "loading"
         );
       }
@@ -211,7 +211,7 @@
       lastStartupPercent = 100;
       setOverlay(
         "Preparing playback",
-        "The first video segment is downloaded. Getting the player ready…",
+        "The first stream segment is downloaded. Getting the player ready…",
         "loading",
         100
       );
@@ -493,7 +493,7 @@
             streamReady = true;
             playerControls.hidden = false;
             updateProgress();
-            setOverlay("Buffering your video", "Preparing the first video segment…", "loading");
+            setOverlay("Buffering your video", "Preparing the first stream segment…", "loading");
             playReadyStream();
           });
           hlsInstance.loadSource(streamUrl.href);
@@ -504,7 +504,7 @@
           streamReady = true;
           playerControls.hidden = false;
           updateProgress();
-          setOverlay("Buffering your video", "Waiting for the first video segment…", "loading");
+          setOverlay("Buffering your video", "Waiting for the first stream segment…", "loading");
           playReadyStream();
         } else {
           throw new Error("unsupported");
